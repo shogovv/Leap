@@ -344,6 +344,43 @@ function moveSelection(delta){
   highlightSelection(anchors);
 }
 
+// geometric neighbor search for the arrow keys — works for both the list grid and the
+// masonry widget view without knowing their column counts, since it just looks at real
+// rendered positions (getBoundingClientRect) rather than assuming a fixed row width
+function findSpatialNeighbor(anchors, fromIndex, dx, dy){
+  if(fromIndex < 0 || fromIndex >= anchors.length) return fromIndex;
+  const cur = anchors[fromIndex].getBoundingClientRect();
+  const curX = cur.left + cur.width / 2;
+  const curY = cur.top + cur.height / 2;
+  let best = -1;
+  let bestScore = Infinity;
+  anchors.forEach((a, i) => {
+    if(i === fromIndex) return;
+    const r = a.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    const ddx = cx - curX;
+    const ddy = cy - curY;
+    if(dy !== 0){
+      if(dy > 0 ? ddy <= 2 : ddy >= -2) return; // must actually be below/above
+      const score = Math.abs(ddy) + Math.abs(ddx) * 0.5;
+      if(score < bestScore){ bestScore = score; best = i; }
+    } else {
+      if(dx > 0 ? ddx <= 2 : ddx >= -2) return; // must actually be right/left
+      const score = Math.abs(ddx) + Math.abs(ddy) * 0.5;
+      if(score < bestScore){ bestScore = score; best = i; }
+    }
+  });
+  return best === -1 ? fromIndex : best;
+}
+function moveSelectionSpatial(dx, dy){
+  const anchors = getVisibleAnchors();
+  if(!anchors.length) return;
+  if(selectedIndex < 0) selectedIndex = 0;
+  selectedIndex = findSpatialNeighbor(anchors, selectedIndex, dx, dy);
+  highlightSelection(anchors);
+}
+
 function applyHints(){
   activeHints = {};
   document.querySelectorAll(".hint").forEach(h=>h.remove());
@@ -400,6 +437,19 @@ queryInput.addEventListener("keydown", (e)=>{
     const anchors = getVisibleAnchors();
     if(anchors[selectedIndex]) confirmActivate(anchors[selectedIndex]);
     return;
+  }
+  // plain arrow keys navigate results too, not just Ctrl+P/N. Up/Down are free real
+  // estate (a single-line input has no native meaning for them). Left/Right DO normally
+  // move the text cursor though, so they only take over the selection when the cursor is
+  // already pinned at that edge (nothing left to move over) — otherwise editing the query
+  // works exactly as expected.
+  if(e.key === "ArrowUp"){ e.preventDefault(); moveSelectionSpatial(0, -1); return; }
+  if(e.key === "ArrowDown"){ e.preventDefault(); moveSelectionSpatial(0, 1); return; }
+  if(e.key === "ArrowLeft" && queryInput.selectionStart === 0 && queryInput.selectionEnd === 0){
+    e.preventDefault(); moveSelectionSpatial(-1, 0); return;
+  }
+  if(e.key === "ArrowRight" && queryInput.selectionStart === queryInput.value.length && queryInput.selectionEnd === queryInput.value.length){
+    e.preventDefault(); moveSelectionSpatial(1, 0); return;
   }
   if(e.ctrlKey && !e.metaKey && !e.altKey){
     const k = e.key.toLowerCase();
@@ -542,7 +592,8 @@ function updateMoodRowsUI(){
 }
 
 const HELP_ROWS = [
-  ["helpNarrow","helpNarrowKey"], ["helpAnd","helpAndKey"], ["helpMove","helpMoveKey"],
+  ["helpNarrow","helpNarrowKey"], ["helpAnd","helpAndKey"],
+  ["helpMoveUpDown","helpMoveUpDownKey"], ["helpMoveLeftRight","helpMoveLeftRightKey"],
   ["helpOpen","helpOpenKey"], ["helpJump","helpJumpKey"], ["helpClear","helpClearKey"],
 ];
 

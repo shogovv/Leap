@@ -35,8 +35,10 @@ const MESSAGES = {
     helpNarrowKey: "文字を入力",
     helpAnd: "言葉を続けてさらに絞り込む",
     helpAndKey: "空白で区切る",
-    helpMove: "選択を移動",
-    helpMoveKey: "Ctrl+P / Ctrl+N",
+    helpMoveUpDown: "選択を上下に移動",
+    helpMoveUpDownKey: "↑ / ↓",
+    helpMoveLeftRight: "選択を左右に移動",
+    helpMoveLeftRightKey: "← / → (Ctrl+P/N)",
     helpOpen: "選択を開く",
     helpOpenKey: "Enter",
     helpJump: "直接ジャンプ",
@@ -49,11 +51,13 @@ const MESSAGES = {
 
     aiLabel: "AIに使い方を教えてもらう",
     aiHint: "普段使っているAIにそのまま貼り付けると、対話しながら少しずつ使い方を教えてもらえます",
-    aiPrompt: `これはChromeの新しいタブ拡張機能「Leap」です。ブックマークをフォルダごとに表示し、開いているタブ・最近閉じたタブもまとめて、キーボードだけで素早く目的のページに移動できます。
+    aiPrompt: `これはChromeの新しいタブ拡張機能「Leap」です。まずこのリポジトリの内容を読み込んでから答えてください: https://github.com/shogovv/Leap
 
-私はまだ操作に慣れていないかもしれません。まず簡単に自己紹介してから、今どんな風にタブやブックマークを使っているか聞いてみてください。そのうえで、Leapの検索やキーボード操作(スペースで絞り込む、Ctrl+文字でジャンプ、Enterで開く、など)を、少しずつ実際に試しながら覚えられるように、対話形式で教えてください。
+読み込んだら、まず簡単に自己紹介をしてください。そのあと、以下をヒアリングしてください:
+・普段どれくらいキーボードショートカットに慣れているか
+・新しいタブを開いたとき、いつも何をしているか(検索する、ブックマークを探す、SNSを見る、など)
 
-詳しい仕様はこちら: https://github.com/shogovv/Leap`,
+それを踏まえて、Leapの検索やキーボード操作(スペースで絞り込む、矢印キーやCtrl+文字でジャンプ、Enterで開く、など)を、私のレベルに合わせて少しずつ、対話形式で教えてください。`,
     copyButton: "📋 コピー",
     copyButtonDone: "✅ コピーしました",
   },
@@ -92,8 +96,10 @@ const MESSAGES = {
     helpNarrowKey: "Type letters",
     helpAnd: "Add more words to narrow further",
     helpAndKey: "Separate with a space",
-    helpMove: "Move selection",
-    helpMoveKey: "Ctrl+P / Ctrl+N",
+    helpMoveUpDown: "Move selection up/down",
+    helpMoveUpDownKey: "↑ / ↓",
+    helpMoveLeftRight: "Move selection left/right",
+    helpMoveLeftRightKey: "← / → (Ctrl+P/N)",
     helpOpen: "Open selection",
     helpOpenKey: "Enter",
     helpJump: "Jump directly",
@@ -106,11 +112,13 @@ const MESSAGES = {
 
     aiLabel: "Ask an AI to walk you through it",
     aiHint: "Paste this into whatever AI you normally use — it'll teach you the ropes through conversation, a bit at a time",
-    aiPrompt: `This is a Chrome new-tab extension called "Leap." It shows my bookmarks grouped by folder, along with my open tabs and recently closed tabs, and lets me jump to any of them almost entirely with the keyboard.
+    aiPrompt: `This is a Chrome new-tab extension called "Leap." Please read this repository first before responding: https://github.com/shogovv/Leap
 
-I might not be used to the shortcuts yet. Could you first introduce yourself briefly, then ask me how I currently manage my tabs and bookmarks? After that, walk me through Leap's search and keyboard controls (space-separated words narrow the search further, Ctrl+letter jumps directly to a result, Enter opens the selected one, etc.) gradually, through conversation, so I can actually try things as I learn them.
+Once you've read it, start by introducing yourself briefly. Then ask me:
+- how comfortable I generally am with keyboard shortcuts
+- what I usually do when I open a new tab (search for something, look for a bookmark, check social media, etc.)
 
-Full details here: https://github.com/shogovv/Leap`,
+Based on that, walk me through Leap's search and keyboard controls (space-separated words narrow the search further, arrow keys or Ctrl+letter to jump, Enter to open the selected one, etc.) at a pace that matches my level, through conversation.`,
     copyButton: "📋 Copy",
     copyButtonDone: "✅ Copied",
   },
