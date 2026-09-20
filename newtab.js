@@ -460,6 +460,10 @@ queryInput.addEventListener("paste", (e)=>{
 queryInput.addEventListener("keydown", (e)=>{
   if(e.key === "Escape"){ e.preventDefault(); resetQuery(); return; }
   if(e.key === "Enter"){
+    // the Enter that confirms an IME conversion (isComposing, or keyCode 229 on browsers
+    // that already report isComposing:false by the time this fires) must not also activate
+    // a result — otherwise finishing kanji conversion doubles as "open the top bookmark"
+    if(e.isComposing || e.keyCode === 229) return;
     e.preventDefault();
     if(e.ctrlKey || e.metaKey){ doWebSearch(); return; }
     const anchors = getVisibleAnchors();
