@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Leap",
+  "version": "1.0.0",
+  "description": "ブックマークバーをフォルダごとに紙質デザインで表示し、キーボードでインクリメンタル検索できる新しいタブページ。",
+  "chrome_url_overrides": {
+    "newtab": "newtab.html"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": [
+    "bookmarks",
+    "tabs",
+    "sessions",
+    "storage",
+    "favicon"
+  ]
+}

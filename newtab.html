@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<script src="redirect-focus.js"></script>
+<title>New Tab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f3ecdd; --paper2:#ece2cc; --ink:#3a2f22; --sub:#8c7f68;
+    --card:#fffdf6; --card-border:#e4d7bb;
+    --accent1:#e07a5f; --accent2:#3d8f78; --accent3:#5b7fbf; --accent4:#c98a3e; --accent5:#a15c8f; --accent6:#4f9e6b;
+    --accent-recent:#7a8194;
+    --hint-bg:#e07a5f; --hint-text:#fffdf6;
+    --mark-bg:#ffe08a; --mark-text:#3a2f22;
+  }
+  /* time-of-day paper moods — same stationery system, the paper itself just catches different light */
+  body[data-mood="dawn"]{ --paper:#fbe3d8; --paper2:#f6cfc0; --ink:#4a2f2a; --sub:#9c7267; --card:#fff8f2; --card-border:#f0d3c2; }
+  body[data-mood="day"]{ --paper:#f3ecdd; --paper2:#ece2cc; --ink:#3a2f22; --sub:#8c7f68; --card:#fffdf6; --card-border:#e4d7bb; }
+  body[data-mood="dusk"]{ --paper:#f0d9b0; --paper2:#e7c084; --ink:#402a1a; --sub:#8a6b45; --card:#fff3df; --card-border:#e3c48f; }
+  body[data-mood="night"]{ --paper:#2b2620; --paper2:#38302a; --ink:#ece3d2; --sub:#a89b85; --card:#37302a; --card-border:#4a4136; }
+  body[data-mood="latenight"]{ --paper:#17140f; --paper2:#211d17; --ink:#cfc3ab; --sub:#7d7161; --card:#221e18; --card-border:#332c22; }
+
+  *{box-sizing:border-box;}
+  html,body{ height:100%; }
+  body{
+    margin:0; min-height:100vh;
+    zoom:1.1; /* matched user-tested 110% browser zoom as the comfortable reading size */
+    font-family:"Zen Maru Gothic","Hiragino Sans",sans-serif;
+    color:var(--ink);
+    background-color:var(--paper);
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(0,0,0,0.025) 0, transparent 40%),
+      radial-gradient(circle at 80% 70%, rgba(0,0,0,0.025) 0, transparent 40%),
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.015) 0px, transparent 1px, transparent 2px);
+    padding:44px 5vw 130px;
+    transition: background-color 1s ease, color .6s ease;
+    position:relative; overflow-x:hidden;
+  }
+
+  .stars{ position:fixed; inset:0; pointer-events:none; opacity:0; transition:opacity 1s; z-index:0; }
+  body[data-mood="night"] .stars, body[data-mood="latenight"] .stars{ opacity:1; }
+  .star{ position:absolute; width:2px; height:2px; background:var(--ink); border-radius:50%; animation: twinkle 3s ease-in-out infinite; }
+  @keyframes twinkle{ 0%,100%{ opacity:.15;} 50%{ opacity:.7;} }
+
+  .top{ position:relative; z-index:1; display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; flex-wrap:wrap; gap:20px;}
+  .top-right{ display:flex; align-items:flex-start; gap:8px; }
+  .time{ font-family:"Kalam",cursive; font-size:52px; font-weight:700; color:var(--ink); transform:rotate(-1deg); display:inline-block;}
+  .date{ font-size:12.5px; color:var(--sub); margin-top:4px; margin-left:4px;}
+  .greeting{ font-family:"Kalam",cursive; font-size:15px; color:var(--sub); margin-top:8px; margin-left:4px; }
+
+  .icon-btn{
+    display:flex; align-items:center; justify-content:center; width:37px; height:37px;
+    background:var(--card); border:1px solid var(--card-border); border-radius:10px;
+    color:var(--sub); text-decoration:none; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.06);
+    transition: color .15s, background .15s;
+  }
+  .icon-btn:hover{ color:var(--ink); background:var(--paper2); }
+  .icon-btn.active{ background:var(--paper2); color:var(--ink); }
+
+  /* ===== settings modal ===== */
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(58,47,34,0.35); backdrop-filter:blur(2px);
+    display:none; align-items:center; justify-content:center; z-index:200;
+  }
+  .modal-backdrop.show{ display:flex; }
+  .settings-panel{
+    width:460px; max-width:92vw; max-height:82vh; overflow-y:auto;
+    background:var(--card); border:1px solid var(--card-border); border-radius:16px;
+    box-shadow:0 20px 50px rgba(58,47,34,0.3); padding:6px;
+  }
+  .modal-header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 14px 10px; position:sticky; top:0; background:var(--card); z-index:1;
+  }
+  .modal-header .title{ font-family:"Kalam",cursive; font-size:20px; font-weight:700; }
+  .modal-close{
+    width:28px; height:28px; border-radius:8px; border:none; background:var(--paper2);
+    color:var(--sub); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px;
+  }
+  .modal-close:hover{ background:var(--card-border); color:var(--ink); }
+  .settings-section{ padding:12px 16px 14px; border-bottom:1px dashed var(--card-border); }
+  .settings-section:last-child{ border-bottom:none; }
+  .settings-label{ font-size:11px; font-weight:700; color:var(--sub); text-transform:uppercase; letter-spacing:.03em; margin-bottom:8px; }
+
+  .segmented{ display:flex; gap:2px; background:var(--paper2); border-radius:8px; padding:3px; }
+  .segmented button{
+    flex:1; border:none; background:transparent; padding:7px 0; border-radius:6px; cursor:pointer;
+    font-size:12.5px; color:var(--sub); font-family:inherit;
+  }
+  .segmented button.active{ background:var(--card); color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,0.1); font-weight:700; }
+
+  .mood-list{ display:flex; flex-direction:column; gap:2px; }
+  .mood-row{
+    display:flex; align-items:center; gap:9px; padding:7px 8px; border-radius:8px; cursor:pointer; font-size:13px;
+    border:none; background:transparent; width:100%; text-align:left; color:var(--ink); font-family:inherit;
+  }
+  .mood-row:hover{ background:var(--paper2); }
+  .mood-row .dot{ width:8px; height:8px; border-radius:50%; border:1.5px solid var(--sub); flex-shrink:0; }
+  .mood-row.active .dot{ background:var(--accent1); border-color:var(--accent1); }
+  .mood-row.active{ font-weight:700; }
+
+  .link-row{
+    display:flex; align-items:center; gap:9px; padding:8px; border-radius:8px; text-decoration:none; color:var(--ink); font-size:13px; cursor:pointer;
+    border:none; background:transparent; width:100%; text-align:left; font-family:inherit;
+  }
+  .link-row:hover{ background:var(--paper2); }
+  .link-row .ext-icon{ margin-left:auto; color:var(--sub); flex-shrink:0; }
+
+  .help-list{ display:flex; flex-direction:column; gap:7px; font-size:12px; }
+  .help-row{ display:flex; justify-content:space-between; gap:10px; align-items:baseline;}
+  .kbd{ background:var(--paper2); border:1px solid var(--card-border); border-radius:4px; padding:1px 6px; font-size:11px; white-space:nowrap; font-family:inherit;}
+
+  .about-text{ font-size:12.5px; line-height:1.6; color:var(--ink); margin-bottom:8px; }
+  .about-version{ font-size:11px; color:var(--sub); margin-bottom:10px; }
+
+  .ai-hint{ font-size:11px; color:var(--sub); line-height:1.5; margin-bottom:8px; }
+  .ai-prompt{
+    width:100%; box-sizing:border-box; font-family:"Zen Maru Gothic",sans-serif; font-size:11px; line-height:1.6;
+    background:var(--paper2); border:1px solid var(--card-border); border-radius:8px; padding:8px; color:var(--ink);
+    resize:none; height:170px; margin-bottom:8px;
+  }
+  .copy-btn{
+    width:100%; padding:8px; border-radius:8px; border:1px solid var(--card-border); background:var(--card);
+    font-family:inherit; font-size:12.5px; font-weight:700; color:var(--ink); cursor:pointer;
+  }
+  .copy-btn:hover{ background:var(--paper2); }
+
+  .content{ position:relative; z-index:1; max-width:1200px; margin:38px auto 0; }
+
+  .masonry{ columns: 4 260px; column-gap:22px; }
+  .masonry:not(.active){ display:none; }
+  .widget{
+    break-inside:avoid; background:var(--card); border:1px solid var(--card-border);
+    border-radius:10px; padding:16px; margin-bottom:20px; position:relative;
+    box-shadow:0 3px 10px rgba(58,47,34,0.08);
+  }
+  .widget.hidden{ display:none; }
+  .widget::before{
+    content:""; position:absolute; top:-6px; left:16px; width:40px; height:14px;
+    background:var(--tape, var(--accent1)); opacity:.75; transform:rotate(-3deg);
+    border-radius:2px;
+  }
+  .widget-head{ display:flex; align-items:center; gap:8px; margin-bottom:12px; font-weight:700; font-size:14px;}
+  .widget-head .count{ margin-left:auto; font-size:11px; color:var(--sub); font-weight:400; background:var(--paper2); padding:2px 8px; border-radius:999px;}
+  .bm-list{ display:flex; flex-direction:column; gap:2px; }
+  .bm{ position:relative; display:flex; align-items:center; gap:9px; padding:6px 6px; border-radius:8px; text-decoration:none; color:var(--ink); font-size:12.5px; }
+  .bm.hidden{ display:none; }
+  .bm:hover{ background:var(--paper2); }
+  .bm .icon{ width:20px; height:20px; border-radius:5px; background:#fff; border:1px solid var(--card-border); display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0;}
+  .bm .icon img{ width:12px; height:12px; }
+  .bm .label{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; flex:1 1 auto; }
+  mark{ background:var(--mark-bg); color:var(--mark-text); border-radius:2px; padding:0 1px; }
+
+  .listview{ display:none; }
+  .listview.active{ display:block; }
+  .folder-row{
+    background:var(--card); border:1px solid var(--card-border); border-radius:10px;
+    padding:14px 18px; margin-bottom:16px; position:relative;
+    box-shadow:0 3px 10px rgba(58,47,34,0.07);
+  }
+  .folder-row.hidden{ display:none; }
+  .folder-row::before{
+    content:""; position:absolute; top:-6px; left:20px; width:44px; height:14px;
+    background:var(--tape, var(--accent1)); opacity:.75; transform:rotate(-2deg); border-radius:2px;
+  }
+  .folder-row-head{ display:flex; align-items:center; gap:9px; padding:0 2px 10px; font-size:13.5px; font-weight:700; border-bottom:1px dashed var(--card-border); margin-bottom:9px; }
+  .folder-row-head .count{ margin-left:auto; font-size:11px; color:var(--sub); font-weight:400;}
+  .list-items{ display:grid; grid-template-columns:repeat(auto-fill, minmax(260px,1fr)); gap:3px 16px; }
+  .list-item{ position:relative; display:flex; align-items:center; gap:9px; padding:6px 8px; border-radius:7px; text-decoration:none; color:var(--ink); font-size:12.5px; }
+  .list-item.hidden{ display:none; }
+  .list-item:hover{ background:var(--paper2); }
+  .list-item .icon{ width:19px; height:19px; border-radius:5px; background:#fff; border:1px solid var(--card-border); display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0;}
+  .list-item .icon img{ width:12px; height:12px; }
+  /* label: was flex-shrink:0 (fine for short bookmark titles) but real tab titles run much
+     longer and would overflow the row instead of eliding — let it shrink and ellipsize,
+     and reserve the domain/time a capped share so it never gets squeezed to nothing */
+  .list-item .label{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; flex:1 1 auto; }
+  .list-item .domain{ flex:0 0 auto; max-width:38%; margin-left:8px; font-size:10px; color:var(--sub); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:right;}
+
+  .hint{
+    margin-left:auto; flex-shrink:0; min-width:17px; height:17px; padding:0 4px;
+    border-radius:5px; background:var(--hint-bg); color:var(--hint-text);
+    font-size:10.5px; font-weight:700; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 2px 4px rgba(0,0,0,0.2); cursor:pointer;
+  }
+
+  /* keyboard cursor: which item Ctrl+P/Ctrl+N + Enter would activate */
+  .bm.selected, .list-item.selected{
+    background:var(--paper2);
+    box-shadow:inset 0 0 0 1.5px var(--hint-bg);
+  }
+
+  /* one-shot flash on whatever just got activated (Enter, Ctrl+letter, hint click, mouse click) */
+  @keyframes confirmPulse{
+    0%{ background:transparent; color:var(--ink); }
+    45%{ background:var(--hint-bg); color:var(--hint-text); transform:scale(1.03); }
+    100%{ background:transparent; color:var(--ink); transform:scale(1); }
+  }
+  .bm.confirming, .list-item.confirming{
+    animation:confirmPulse .32s ease-out;
+  }
+
+  .empty-state{ text-align:center; color:var(--sub); font-size:13px; padding:50px 0; display:none; font-family:"Kalam",cursive; font-size:18px;}
+  .empty-state.show{ display:block; }
+
+  .query-pill{
+    position:fixed; left:50%; bottom:36px; transform:translateX(-50%) translateY(16px) rotate(-1deg);
+    background:#fff9e8; border:1px solid var(--card-border); box-shadow:0 6px 16px rgba(58,47,34,0.18);
+    padding:10px 18px; border-radius:6px; font-size:16px; font-family:"Kalam",cursive; font-weight:700;
+    opacity:0; transition:opacity .15s, transform .15s; display:flex; align-items:center; gap:10px; z-index:20;
+  }
+  .query-pill.show{ opacity:1; transform:translateX(-50%) translateY(0) rotate(-1deg); }
+  .query-input{ background:transparent; border:none; outline:none; color:var(--ink); font:inherit; caret-color:var(--accent1); padding:0; min-width:2px; }
+  .query-pill .matches{ font-family:"Zen Maru Gothic",sans-serif; font-size:11px; font-weight:400; color:var(--sub); border-left:1px dashed var(--card-border); padding-left:10px; white-space:nowrap; }
+
+  /* custom hover tooltip — native title~ took 1-1.5s to appear, this shows much sooner */
+  .tooltip{
+    position:fixed; z-index:100; pointer-events:none;
+    background:#fff9e8; border:1px solid var(--card-border); box-shadow:0 6px 16px rgba(58,47,34,0.18);
+    padding:8px 12px; border-radius:8px; font-size:12px; line-height:1.5; color:#3a2f22;
+    white-space:pre-line; max-width:360px; word-break:break-all;
+    opacity:0; transform:translateY(-4px); transition:opacity .12s ease, transform .12s ease;
+  }
+  .tooltip.show{ opacity:1; transform:translateY(0); }
+</style>
+</head>
+<body data-mood="day">
+
+  <div class="stars" id="stars"></div>
+
+  <div class="top">
+    <div>
+      <div class="time" id="time">--:--</div>
+      <div class="date" id="date"></div>
+      <div class="greeting" id="greeting"></div>
+    </div>
+    <div class="top-right">
+      <button id="btnSettings" class="icon-btn" data-tooltip="設定">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 0 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 0 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="masonry" id="grid"></div>
+    <div class="listview active" id="list"></div>
+    <div class="empty-state" id="emptyState"></div>
+  </div>
+
+  <div class="modal-backdrop" id="settingsBackdrop">
+    <div class="settings-panel">
+      <div class="modal-header">
+        <div class="title" id="settingsTitle">⚙ Settings</div>
+        <button class="modal-close" id="settingsClose">✕</button>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-label" id="viewLabel">View</div>
+        <div class="segmented">
+          <button id="btnGrid" data-view="grid"></button>
+          <button id="btnList" data-view="list" class="active"></button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-label" id="moodLabel">Mood</div>
+        <div class="mood-list" id="moodList"></div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-label" id="langLabel">Language</div>
+        <div class="segmented">
+          <button id="btnLangJa" data-lang="ja" class="active">日本語</button>
+          <button id="btnLangEn" data-lang="en">English</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <a class="link-row" id="btnEditBookmarks" href="chrome://bookmarks/">
+          <span id="editBookmarksLabel">Edit bookmarks</span>
+          <span class="ext-icon">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>
+          </span>
+        </a>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-label" id="helpLabel">Usage &amp; shortcuts</div>
+        <div class="help-list" id="helpList"></div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-label" id="aboutLabel">About</div>
+        <div class="about-text" id="aboutText"></div>
+        <div class="about-version" id="aboutVersion"></div>
+        <a class="link-row" href="https://github.com/shogovv/Leap" target="_blank" style="padding-left:0;">
+          🔗 github.com/shogovv/Leap
+        </a>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-label" id="aiLabel">Ask an AI</div>
+        <div class="ai-hint" id="aiHint"></div>
+        <textarea class="ai-prompt" id="aiPromptText" readonly></textarea>
+        <button class="copy-btn" id="btnCopyPrompt"></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="query-pill" id="queryPill">
+    <input id="queryInput" class="query-input" type="text" size="1"
+      autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    <span class="matches" id="matchCount"></span>
+  </div>
+
+  <div class="tooltip" id="tooltip"></div>
+
+<script src="i18n.js"></script>
+<script src="newtab.js"></script>
+</body>
+</html>
