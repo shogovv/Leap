@@ -1,0 +1,60 @@
+# Leap 技術メモ(制約とハマりどころ)
+
+実際に踏んだ問題と、その時点で確定した対処。同じ轍を踏まないための記録。
+
+## Manifest V3 / Chrome まわり
+
+- **インライン `<script>` は CSP で禁止**。JS は必ず外部ファイル(`newtab.js` / `i18n.js` / `redirect-focus.js`)に置く。
+- **オムニバーが新規タブのフォーカスを奪う**(Chrome 27 以降の仕様)。`redirect-focus.js` が `location.search = "?focus"` へ自己リダイレクトして、オムニバーの「初回ナビゲーション時のフォーカス保護」を回避している。`Esc` でもオムニバーからページへフォーカスを戻せる。
+- `chrome.*` API はすべて Promise 形式で `await` する(コールバック形式は使わない)。
+- `chrome.search.query({ text, disposition: "CURRENT_TAB" })` でユーザーの既定検索エンジンを使う(`search` 権限)。
+- 開いているタブの一覧は「履歴」ではなく「今開いているタブ(`lastAccessed` 降順)」。自分自身(`chrome-extension://<自分>/newtab.html`)と `chrome://` は除外。項目のクリックは `chrome.tabs.update` で切り替え(重複して開かない)。
+- 最近閉じたタブは `chrome.sessions.getRecentlyClosed`(Chrome 側の上限 25 件)。復元は `chrome.sessions.restore`(履歴ごと戻る)。
+- `chrome://bookmarks/` へのリンクはページ起点だとブロックされるため、`chrome.tabs.create` で開く。
+
+## IME(日本語入力)
+
+- **IME の変換を JS からキャンセルすることはできない**。`blur()/focus()` で無理に切ろうとすると変換中テキストが壊れる(試して却下済み)。
+- 正しい対処:`input` イベントの `e.isComposing` が true の間は検索を走らせず、`compositionend` で確定後に検索する。
+- **変換確定の Enter が「先頭の結果を開く」を誘発してはいけない**。keydown の Enter で `e.isComposing || e.keyCode === 229` なら何もしない。
+- トレードオフ(ユーザー承諾済み):システムの IME が日本語のときに英語入力を強制することはできない。ユーザーが自分で切り替える(英数キーなど)。
+
+## CSS `zoom` の罠
+
+- `body { zoom: 1.1 }` を使っている。`position: fixed` の子孫は、指定した `top/left` が zoom 倍されて描画される。一方 `getBoundingClientRect()` と `window.innerWidth/innerHeight` は実際の(視覚上の)px を返し、ズームされた要素自身の `offsetWidth/offsetHeight` はズーム前のローカル単位。
+- ツールチップでは、書き込む座標を zoom で割り、ローカル寸法を viewport と比較するときは zoom を掛けて補正している。
+- 新しい固定配置 UI を足すなら、まず `position: sticky`(通常フロー内)で済まないか検討する。sticky は zoom の補正が要らない。
+
+## Chromium の multicol 再描画バグ
+
+- ウィジェット表示(`columns` を使うマソンリー)で、要素の**外側にはみ出す**擬似要素(テープ装飾の `top: -6px`)があると、絞り込みで要素を出し入れしたときに、消えたはずの要素のはみ出し部分が描画ゴミとして残る。
+- 対処:テープは `top: 0`(ボックス内)に収める。`.widget::before` と `.folder-row::before` は揃える。
+
+## フォント(Kalam と日本語)
+
+- 検索欄は英字に手書き風の `Kalam` を使うが、Kalam に日本語グリフはない。`.query-input` は `font-family: "Kalam","Zen Maru Gothic",cursive` とし、日本語は Zen Maru Gothic に落とす(汎用 `cursive` のままだと別フォントになる)。
+- **行の高さは最初のフォント(Kalam)の字形基準で決まる**。この行の中では日本語グリフが約 1.5px 上に寄って見える。要素ボックスの中心が一致していても、文字の見た目は中心に来ない。
+- プレースホルダーは別ブロックなので、日本語のときだけ `html[lang="ja"] ... ::placeholder { font-family: "Zen Maru Gothic" }` で自前の行ボックスにして中心に揃えた。そのため `document.documentElement.lang` を `init()` と `switchLanguage()` で `currentLang` に同期している(`newtab.html` の `lang="ja"` は初期値)。
+- 入力欄の `line-height` は `normal` より小さくしても効かない(Chrome の仕様)。
+- **中央揃えの確認方法**:要素の `getBoundingClientRect()` 比較では不十分(文字の見た目を見ていない)。ハーネスで `body.style.zoom = 3.5` にし、バーの縦中心に赤い 1px の案内線を `position:absolute` で引いてスクリーンショットを撮り、文字の見た目の中心と比べる。英字は x-height 帯の中心で見る。
+- プレースホルダーの色・太さは `getComputedStyle(el, '::placeholder')` で読める。
+
+## パフォーマンス
+
+- 「開いているタブ」は 500 件でも問題ない(`chrome.tabs.query` とプレーンオブジェクトのフィルタは安価)。重いのは DOM 描画。
+- そのため `capWhenEmpty` パターン:検索が空のときだけ上位 N 件を描画し、検索中はプール全体に対してマッチしたものだけ描画する。プール自体は切り詰めない。
+
+## 検索ロジック
+
+- 空白区切りのトークンはすべて満たす必要がある(AND)。各トークンは、ラベル・URL・**フォルダ名**のいずれかに含まれていればよい。フォルダ名だけ打てば中身が全部出る。
+
+## ツールチップ
+
+- ネイティブの `title=` は表示まで 1〜1.5 秒かかり遅い。`data-tooltip` + JS(`TOOLTIP_DELAY_MS = 250`)の独自ツールチップを `document` レベルで委譲して使う。ヘッダーのボタンも同じ仕組み。
+
+## i18n の構造
+
+- `MESSAGES = { ja: {...}, en: {...} }` を `t(key)` で引く(ja へフォールバック)。
+- `MOODS[mood].greetings = { ja: [100], en: [100] }`、`PLACEHOLDERS` と `EMPTY_STATES` は `{ ja: [10], en: [10] }`。`emptyHint` は `{query}` を置換する文言。空状態の1行目は `renderEmptyState()` が「0件になった時点」で一度だけ選び、0件が続く間は固定する(毎キー入力で選び直すとちらつく)。DOM は `textContent` で組み立て、入力文字を `innerHTML` に入れない。
+- 疑似セクションは `name` ではなく `nameKey` を持ち、描画時に `t()` で解決する。
+- 設定は `chrome.storage.local` に `{ moodMode, view, lang }`。`init()` の最初に読み込んでから描画する。

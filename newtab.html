@@ -139,6 +139,14 @@
     min-width:220px;
   }
   .search-bar .query-input{ background:transparent; border:none; outline:none; color:var(--ink); font:inherit; caret-color:var(--accent1); padding:0; min-width:2px; width:220px; }
+  /* the placeholder is only an invitation: lighter weight and a faded --sub so it doesn't
+     compete with typed text. Japanese glyphs fall back to Zen Maru Gothic (not the generic
+     cursive fallback) so vertical metrics match the rest of the bar */
+  .search-bar .query-input{ font-family:"Kalam","Zen Maru Gothic",cursive; line-height:1.4; }
+  .search-bar .query-input::placeholder{ color:var(--sub); opacity:.4; font-weight:400; font-size:13.5px; }
+  /* Japanese text inside a Kalam-metric line box sits ~1.5px above center; giving the
+     placeholder its own Zen Maru Gothic line box (it's a separate block) centers it */
+  html[lang="ja"] .search-bar .query-input::placeholder{ font-family:"Zen Maru Gothic",sans-serif; }
   .search-bar .matches{ font-family:"Zen Maru Gothic",sans-serif; font-size:11px; font-weight:400; color:var(--sub); border-left:1px dashed var(--card-border); padding-left:10px; white-space:nowrap; }
 
   /* Web検索は入力欄と別エリア。常に見えている独立したボタンで、常時ショートカット表記も出す */
@@ -246,6 +254,7 @@
 
   .empty-state{ text-align:center; color:var(--sub); font-size:13px; padding:50px 0; display:none; font-family:"Kalam",cursive; font-size:18px;}
   .empty-state.show{ display:block; }
+  .empty-hint{ margin-top:10px; font-family:"Zen Maru Gothic",sans-serif; font-size:12px; }
 
   /* custom hover tooltip — native title~ took 1-1.5s to appear, this shows much sooner */
   .tooltip{

@@ -249,6 +249,29 @@ function visibleItems(f, tokens){
   return f.items.filter(i=>matches(i, sectionName(f), tokens));
 }
 
+// the empty-state line is rolled once when results first run out and kept while the query
+// keeps matching nothing — re-rolling on every keystroke would make it flicker
+let emptyLineIndex = -1;
+const EMPTY_QUERY_MAX = 24;
+function renderEmptyState(isEmpty){
+  emptyEl.classList.toggle("show", isEmpty);
+  if(!isEmpty){ emptyLineIndex = -1; return; }
+  const pool = EMPTY_STATES[currentLang] || EMPTY_STATES.ja;
+  if(emptyLineIndex < 0 || emptyLineIndex >= pool.length) emptyLineIndex = Math.floor(Math.random() * pool.length);
+  emptyEl.textContent = "";
+  const main = document.createElement("div");
+  main.textContent = pool[emptyLineIndex];
+  emptyEl.appendChild(main);
+  const q = queryInput.value.trim();
+  if(q){
+    const shown = q.length > EMPTY_QUERY_MAX ? q.slice(0, EMPTY_QUERY_MAX) + "…" : q;
+    const sub = document.createElement("div");
+    sub.className = "empty-hint";
+    sub.textContent = t("emptyHint").replace("{query}", shown);
+    emptyEl.appendChild(sub);
+  }
+}
+
 function render(){
   hideTooltip(); // the hovered element (if any) is about to be destroyed and rebuilt
   const tokens = tokenize(queryInput.value);
@@ -291,8 +314,7 @@ function render(){
     listEl.appendChild(row);
   });
 
-  emptyEl.textContent = t("emptyState");
-  emptyEl.classList.toggle("show", !anyVisible);
+  renderEmptyState(!anyVisible);
   applyHints();
 }
 
@@ -702,9 +724,11 @@ function renderSettingsPanel(){
 function switchLanguage(lang){
   if(currentLang === lang) return;
   currentLang = lang;
+  document.documentElement.lang = lang;
   settingsLoaded.lang = lang;
   saveSettings();
   setMood(currentMood); // re-roll the greeting so it matches the new language too
+  emptyLineIndex = -1;
   rollPlaceholder();
   document.getElementById("webSearchLabel").textContent = "🔍 " + t("webSearchLabel");
   render();
@@ -745,6 +769,7 @@ async function init(){
     };
   } catch(err){ console.error("newtab: failed to load settings", err); }
   currentLang = settingsLoaded.lang;
+  document.documentElement.lang = currentLang;
   currentView = settingsLoaded.view;
 
   let uid = 0;

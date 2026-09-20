@@ -6,7 +6,7 @@ const MESSAGES = {
     openTabs: "開いているタブ",
     closedTabs: "最近閉じたタブ",
     untitledFolder: "無題フォルダ",
-    emptyState: "うーん、それらしいのは無いみたい",
+    emptyHint: "Enter で「{query}」をWeb検索",
     matchCountSuffix: " 件",
     matchCountHint: " · Ctrl+文字で開く",
 
@@ -73,7 +73,7 @@ const MESSAGES = {
     openTabs: "Open Tabs",
     closedTabs: "Recently Closed",
     untitledFolder: "Untitled Folder",
-    emptyState: "Hmm, nothing quite like that around",
+    emptyHint: "Press Enter to search the web for \"{query}\"",
     matchCountSuffix: " results",
     matchCountHint: " · Ctrl+letter to open",
 
@@ -383,5 +383,34 @@ const PLACEHOLDERS = {
     "Go ahead, type",
     "Anything on your mind?",
     "Start here",
+  ],
+};
+
+// shown when nothing matches — one line picked at random per "empty episode" (see render()
+// in newtab.js), followed by the emptyHint line pointing at web search
+const EMPTY_STATES = {
+  ja: [
+    "うーん、それらしいのは無いみたい",
+    "手元には見当たらないなあ",
+    "ここには無さそう",
+    "探したけど、空振りでした",
+    "ブックマークにはいないみたい",
+    "この辺りにはいないなあ",
+    "ヒットなし。でも世界は広い",
+    "まだ出会っていないのかも",
+    "見つからず。外を探してみる?",
+    "手持ちには無し、次の手へ",
+  ],
+  en: [
+    "Hmm, nothing quite like that around",
+    "Nothing turning up on this end",
+    "Doesn't look like it's in here",
+    "Looked around, came up empty",
+    "Not in your bookmarks, it seems",
+    "Not hiding anywhere around here",
+    "No hits — but the web is big",
+    "Maybe you haven't met yet",
+    "Not found. Try looking further out?",
+    "Not in the stash — on to plan B",
   ],
 };
