@@ -27,6 +27,8 @@ const MESSAGES = {
 
     langLabel: "言語",
 
+    webSearchLabel: "Web検索",
+
     editBookmarks: "ブックマークを編集",
     editBookmarksTooltip: "Chromeのブックマークを編集(新しいタブで開きます)",
 
@@ -35,12 +37,16 @@ const MESSAGES = {
     helpNarrowKey: "文字を入力",
     helpAnd: "言葉を続けてさらに絞り込む",
     helpAndKey: "空白で区切る",
+    helpPasteUrl: "URLを開く",
+    helpPasteUrlKey: "ペースト",
     helpMoveUpDown: "選択を上下に移動",
     helpMoveUpDownKey: "↑ / ↓",
     helpMoveLeftRight: "選択を左右に移動",
-    helpMoveLeftRightKey: "← / → (Ctrl+P/N)",
+    helpMoveLeftRightKey: "← / → (Ctrl+P/N、Tab/Shift+Tab)",
     helpOpen: "選択を開く",
     helpOpenKey: "Enter",
+    helpWebSearch: "Web検索",
+    helpWebSearchKey: "Ctrl+Enter(一致0件ならEnterも)",
     helpJump: "直接ジャンプ",
     helpJumpKey: "Ctrl+文字",
     helpClear: "検索をクリア",
@@ -88,6 +94,8 @@ const MESSAGES = {
 
     langLabel: "Language",
 
+    webSearchLabel: "Web search",
+
     editBookmarks: "Edit bookmarks",
     editBookmarksTooltip: "Edit your Chrome bookmarks (opens in a new tab)",
 
@@ -96,12 +104,16 @@ const MESSAGES = {
     helpNarrowKey: "Type letters",
     helpAnd: "Add more words to narrow further",
     helpAndKey: "Separate with a space",
+    helpPasteUrl: "Open a URL",
+    helpPasteUrlKey: "Paste it",
     helpMoveUpDown: "Move selection up/down",
     helpMoveUpDownKey: "↑ / ↓",
     helpMoveLeftRight: "Move selection left/right",
-    helpMoveLeftRightKey: "← / → (Ctrl+P/N)",
+    helpMoveLeftRightKey: "← / → (Ctrl+P/N, Tab/Shift+Tab)",
     helpOpen: "Open selection",
     helpOpenKey: "Enter",
+    helpWebSearch: "Web search",
+    helpWebSearchKey: "Ctrl+Enter (or Enter with 0 matches)",
     helpJump: "Jump directly",
     helpJumpKey: "Ctrl+letter",
     helpClear: "Clear search",
@@ -342,4 +354,34 @@ const MOODS = {
     "Late-night focus, worth saving for tomorrow.","Up this late, might be your body's SOS.","Late nights, better to choose plenty of sleep.","Still up? Almost time to drift off.","Late night moments, a savoring kind of time.",
     "Up this late… impressive, but let's sleep now.","Late nights, tomorrow-you will thank you for sleeping early.","Still awake, save that stamina for tomorrow.","Late night quiet, continue it under the covers.","Up this late… goodnight, see you tomorrow.",
   ]}},
+};
+
+// query input placeholder — picked at random (see rollPlaceholder() in newtab.js) so it
+// doesn't feel static every new tab; deliberately not "検索"/"Search", just an invitation
+// to type something
+const PLACEHOLDERS = {
+  ja: [
+    "なんでも入力",
+    "気になることを",
+    "何か探す？",
+    "ここに入力",
+    "とりあえず打ってみて",
+    "何か思いついたら",
+    "まずは一言",
+    "さくっと検索",
+    "お題はある？",
+    "気の向くままに",
+  ],
+  en: [
+    "Type something",
+    "Type to find...",
+    "Start typing",
+    "Just type",
+    "What's up?",
+    "Fire away",
+    "Say something",
+    "Go ahead, type",
+    "Anything on your mind?",
+    "Start here",
+  ],
 };

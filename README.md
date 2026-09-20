@@ -20,8 +20,12 @@ closed tabs — laid out and instantly searchable, without ever touching the mou
   duplicating it, and restores closed tabs with their history intact
 - **Incremental search** — type to filter instantly; space-separated words narrow
   further, and a folder name alone matches everything inside it
-- **Keyboard-first** — `Ctrl+P`/`Ctrl+N` to move the selection, `Enter` to open it,
-  `Ctrl+<letter>` to jump straight to a result, `Esc` to clear
+- **Keyboard-first** — arrow keys, `Ctrl+P`/`Ctrl+N`, or `Tab`/`Shift+Tab` to move the
+  selection, `Enter` to open it, `Ctrl+<letter>` to jump straight to a result, `Esc` to clear
+- **Paste a URL, go there directly** — pasting something URL-shaped into the search
+  field skips the search entirely and navigates there
+- **Web search fallback** — `Enter` opens a web search instead when nothing local
+  matches, and `Ctrl+Enter` (or the search button) always does, match or not
 - **Time-of-day mood** — the paper color and one of 500 rotating greetings shift
   through dawn / day / dusk / night / late-night (or pin it to one you like)
 - **English & Japanese** — full UI and greeting translation, switchable anytime
@@ -41,8 +45,10 @@ closed tabs — laid out and instantly searchable, without ever touching the mou
 |---|---|
 | Narrow down | Type letters |
 | Narrow down further | Separate words with a space |
-| Move selection | `Ctrl+P` / `Ctrl+N` |
+| Open a URL directly | Paste it |
+| Move selection | Arrow keys, `Ctrl+P` / `Ctrl+N`, or `Tab` / `Shift+Tab` |
 | Open selection | `Enter` |
+| Web search | `Ctrl+Enter` (or `Enter` when nothing local matches) |
 | Jump directly to a result | `Ctrl+<letter>` (shown once ≤9 results match) |
 | Clear search | `Esc` |
 
@@ -59,6 +65,7 @@ assistant you use if you'd rather learn it conversationally.
 | `sessions` | Listing and restoring recently closed tabs |
 | `storage` | Remembering your view/mood/language choice between sessions |
 | `favicon` | Showing each bookmark's real favicon without any external network request |
+| `search` | Running a web search with your default search engine (`Ctrl+Enter`, or `Enter` with no local match) |
 
 Nothing here talks to a server Leap controls — there isn't one. Everything runs
 locally in the page.

@@ -162,12 +162,12 @@ const HINT_THRESHOLD = 9;
 const gridEl = document.getElementById("grid");
 const listEl = document.getElementById("list");
 const emptyEl = document.getElementById("emptyState");
-const queryPill = document.getElementById("queryPill");
 const queryInput = document.getElementById("queryInput");
 const matchCountEl = document.getElementById("matchCount");
 const greetingEl = document.getElementById("greeting");
 const starsEl = document.getElementById("stars");
 const tooltipEl = document.getElementById("tooltip");
+const webSearchBtn = document.getElementById("btnWebSearch");
 
 
 function moodForHour(h){
@@ -407,17 +407,38 @@ function applyHints(){
   }
   matchCountEl.textContent = visibleAnchors.length + t("matchCountSuffix") +
     (query && visibleAnchors.length<=HINT_THRESHOLD && visibleAnchors.length>0 ? t("matchCountHint") : "");
+
+  // zero local matches (with something actually typed) means Enter now falls through to
+  // web search too — move the "you're about to activate this" look over to that button
+  webSearchBtn.classList.toggle("selected", !!query && visibleAnchors.length === 0);
 }
 
-function updatePillVisibility(){
-  queryPill.classList.toggle("show", queryInput.value.length>0);
-  queryInput.size = Math.max(1, queryInput.value.length);
-}
 // clears the query without rendering — use this right before leaving the page (navigating
 // away or switching tabs), so the full list doesn't flash back into view while we're still
 // visible for that one frame. render() then only happens once we're actually back (focus).
-function clearQueryInput(){ queryInput.value = ""; updatePillVisibility(); }
+function clearQueryInput(){ queryInput.value = ""; }
 function resetQuery(){ clearQueryInput(); render(); }
+
+// a pasted URL skips incremental search entirely and navigates this tab there immediately —
+// this page IS the current tab, so a plain location.href assignment is enough (same
+// mechanism as opening a bookmark via activate() below)
+function isUrlLike(text){
+  const t = text.trim();
+  if(!t || /\s/.test(t)) return false;
+  if(/^https?:\/\//i.test(t)) return true;
+  return /^[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z0-9]{2,}(\/\S*)?$/i.test(t);
+}
+
+// forced web search — always available via Ctrl+Enter/Cmd+Enter or the button, and also
+// what a plain Enter falls back to once there are zero local matches (see the keydown
+// handler and applyHints()'s toggling of webSearchBtn's "selected" look)
+async function doWebSearch(){
+  const query = queryInput.value.trim();
+  if(!query) return;
+  try {
+    await chrome.search.query({ text: query, disposition: "CURRENT_TAB" });
+  } catch(err){ console.error("newtab: web search failed", err); }
+}
 
 // Chrome gives no reliable way to veto/cancel IME composition from JS (blur+refocus was
 // tried and it scrambles the composition instead of cancelling it) — so we let IME work
@@ -426,31 +447,37 @@ function resetQuery(){ clearQueryInput(); render(); }
 // so skip those and only search once the reading is actually committed.
 queryInput.addEventListener("input", (e)=>{
   if(e.isComposing) return;
-  updatePillVisibility();
   render();
 });
-queryInput.addEventListener("compositionend", ()=>{ updatePillVisibility(); render(); });
+queryInput.addEventListener("compositionend", ()=>{ render(); });
+queryInput.addEventListener("paste", (e)=>{
+  const pasted = (e.clipboardData || window.clipboardData).getData("text");
+  if(!isUrlLike(pasted)) return; // not URL-like — let it paste normally into incremental search
+  e.preventDefault();
+  const url = /^https?:\/\//i.test(pasted.trim()) ? pasted.trim() : "https://" + pasted.trim();
+  location.href = url;
+});
 queryInput.addEventListener("keydown", (e)=>{
   if(e.key === "Escape"){ e.preventDefault(); resetQuery(); return; }
   if(e.key === "Enter"){
     e.preventDefault();
+    if(e.ctrlKey || e.metaKey){ doWebSearch(); return; }
     const anchors = getVisibleAnchors();
     if(anchors[selectedIndex]) confirmActivate(anchors[selectedIndex]);
+    else doWebSearch();
     return;
   }
-  // plain arrow keys navigate results too, not just Ctrl+P/N. Up/Down are free real
-  // estate (a single-line input has no native meaning for them). Left/Right DO normally
-  // move the text cursor though, so they only take over the selection when the cursor is
-  // already pinned at that edge (nothing left to move over) — otherwise editing the query
-  // works exactly as expected.
+  // plain arrow keys always navigate results, not just Ctrl+P/N — including Left/Right,
+  // which means they no longer move the text cursor within the query. Tried gating
+  // Left/Right on the cursor being at that edge first, but that made them feel like they
+  // "were" cursor movement most of the time; consistent selection-navigation won out.
   if(e.key === "ArrowUp"){ e.preventDefault(); moveSelectionSpatial(0, -1); return; }
   if(e.key === "ArrowDown"){ e.preventDefault(); moveSelectionSpatial(0, 1); return; }
-  if(e.key === "ArrowLeft" && queryInput.selectionStart === 0 && queryInput.selectionEnd === 0){
-    e.preventDefault(); moveSelectionSpatial(-1, 0); return;
-  }
-  if(e.key === "ArrowRight" && queryInput.selectionStart === queryInput.value.length && queryInput.selectionEnd === queryInput.value.length){
-    e.preventDefault(); moveSelectionSpatial(1, 0); return;
-  }
+  if(e.key === "ArrowLeft"){ e.preventDefault(); moveSelectionSpatial(-1, 0); return; }
+  if(e.key === "ArrowRight"){ e.preventDefault(); moveSelectionSpatial(1, 0); return; }
+  // Tab/Shift+Tab move the selection the same way Ctrl+P/N do, instead of leaving the
+  // query field — there's nothing else on the page worth tabbing to.
+  if(e.key === "Tab"){ e.preventDefault(); moveSelection(e.shiftKey ? -1 : 1); return; }
   if(e.ctrlKey && !e.metaKey && !e.altKey){
     const k = e.key.toLowerCase();
     if(k === "p"){ e.preventDefault(); moveSelection(-1); return; }
@@ -573,6 +600,15 @@ document.getElementById("btnEditBookmarks").addEventListener("click", (e)=>{
   closeModal();
 });
 
+webSearchBtn.addEventListener("click", ()=>{ doWebSearch(); queryInput.focus(); });
+
+// picked once per page load (and re-rolled on a language switch) — just a friendlier
+// placeholder than a plain "search", varied so it doesn't feel static every new tab
+function rollPlaceholder(){
+  const pool = PLACEHOLDERS[currentLang] || PLACEHOLDERS.ja;
+  queryInput.placeholder = pool[Math.floor(Math.random() * pool.length)];
+}
+
 // ===== settings modal =====
 const settingsBackdrop = document.getElementById("settingsBackdrop");
 const moodListEl = document.getElementById("moodList");
@@ -592,9 +628,10 @@ function updateMoodRowsUI(){
 }
 
 const HELP_ROWS = [
-  ["helpNarrow","helpNarrowKey"], ["helpAnd","helpAndKey"],
+  ["helpNarrow","helpNarrowKey"], ["helpAnd","helpAndKey"], ["helpPasteUrl","helpPasteUrlKey"],
   ["helpMoveUpDown","helpMoveUpDownKey"], ["helpMoveLeftRight","helpMoveLeftRightKey"],
-  ["helpOpen","helpOpenKey"], ["helpJump","helpJumpKey"], ["helpClear","helpClearKey"],
+  ["helpOpen","helpOpenKey"], ["helpWebSearch","helpWebSearchKey"],
+  ["helpJump","helpJumpKey"], ["helpClear","helpClearKey"],
 ];
 
 // rebuilds every translatable string inside the modal — called on open and on language
@@ -664,6 +701,8 @@ function switchLanguage(lang){
   settingsLoaded.lang = lang;
   saveSettings();
   setMood(currentMood); // re-roll the greeting so it matches the new language too
+  rollPlaceholder();
+  document.getElementById("webSearchLabel").textContent = "🔍 " + t("webSearchLabel");
   render();
   renderSettingsPanel();
 }
@@ -732,6 +771,8 @@ async function init(){
   }
 
   setMood(settingsLoaded.moodMode === "auto" ? moodForHour(new Date().getHours()) : settingsLoaded.moodMode);
+  rollPlaceholder();
+  document.getElementById("webSearchLabel").textContent = "🔍 " + t("webSearchLabel");
   render();
 }
 init();

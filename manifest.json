@@ -16,6 +16,7 @@
     "tabs",
     "sessions",
     "storage",
-    "favicon"
+    "favicon",
+    "search"
   ]
 }
