@@ -822,11 +822,17 @@ function updateMoodRowsUI(){
   });
 }
 
+// mode "plain": the "key" column isn't a real keystroke (e.g. "type letters", "paste it",
+// "your own shortcut + Space") — render as plain muted text, not a .kbd pill.
+// mode "badges" (default): the i18n value is one or more "|"-separated key tokens, each its
+// own .kbd pill (so "←/→(Ctrl+P/N, Tab/Shift+Tab)" doesn't get crammed into a single
+// unreadable badge), optionally followed by "::<note>" — a non-key condition rendered as
+// small plain text after the badges instead of inside one.
 const HELP_ROWS = [
-  ["helpNarrow","helpNarrowKey"], ["helpAnd","helpAndKey"], ["helpPasteUrl","helpPasteUrlKey"],
+  ["helpNarrow","helpNarrowKey","plain"], ["helpAnd","helpAndKey"], ["helpPasteUrl","helpPasteUrlKey","plain"],
   ["helpMoveUpDown","helpMoveUpDownKey"], ["helpMoveLeftRight","helpMoveLeftRightKey"],
   ["helpOpen","helpOpenKey"], ["helpWebSearch","helpWebSearchKey"],
-  ["helpSiteSearch","helpSiteSearchKey"],
+  ["helpSiteSearch","helpSiteSearchKey","plain"],
   ["helpJump","helpJumpKey"], ["helpClear","helpClearKey"],
 ];
 
@@ -862,6 +868,10 @@ function renderSettingsPanel(){
     setMood(moodForHour(new Date().getHours()));
   });
   moodListEl.appendChild(autoRow);
+  // the 5 concrete moods sit in their own grid below the full-width "auto" row — "auto" is
+  // a different kind of choice ("let the clock decide"), not one more option among equals
+  const moodGrid = document.createElement("div");
+  moodGrid.className = "mood-grid";
   MOOD_ORDER.forEach(m=>{
     const row = document.createElement("button");
     row.className = "mood-row";
@@ -872,8 +882,9 @@ function renderSettingsPanel(){
       saveSettings();
       setMood(m);
     });
-    moodListEl.appendChild(row);
+    moodGrid.appendChild(row);
   });
+  moodListEl.appendChild(moodGrid);
   updateMoodRowsUI();
 
   document.getElementById("langLabel").textContent = t("langLabel");
@@ -891,10 +902,37 @@ function renderSettingsPanel(){
 
   document.getElementById("helpLabel").textContent = t("helpLabel");
   helpListEl.innerHTML = "";
-  HELP_ROWS.forEach(([descKey, keyKey])=>{
+  HELP_ROWS.forEach(([descKey, keyKey, mode])=>{
     const row = document.createElement("div");
     row.className = "help-row";
-    row.innerHTML = `<span class="desc">${t(descKey)}</span><span class="kbd">${t(keyKey)}</span>`;
+    const desc = document.createElement("span");
+    desc.className = "desc";
+    desc.textContent = t(descKey);
+    row.appendChild(desc);
+
+    const keysWrap = document.createElement("span");
+    keysWrap.className = "help-keys";
+    if(mode === "plain"){
+      const plain = document.createElement("span");
+      plain.className = "help-plain";
+      plain.textContent = t(keyKey);
+      keysWrap.appendChild(plain);
+    } else {
+      const [badges, note] = t(keyKey).split("::");
+      badges.split("|").forEach(k=>{
+        const kbd = document.createElement("span");
+        kbd.className = "kbd";
+        kbd.textContent = k;
+        keysWrap.appendChild(kbd);
+      });
+      if(note){
+        const noteEl = document.createElement("span");
+        noteEl.className = "help-note";
+        noteEl.textContent = note;
+        keysWrap.appendChild(noteEl);
+      }
+    }
+    row.appendChild(keysWrap);
     helpListEl.appendChild(row);
   });
 

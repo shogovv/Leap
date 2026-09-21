@@ -74,3 +74,9 @@
 - 疑似セクションは `name` ではなく `nameKey` を持ち、描画時に `t()` で解決する。
 - 設定は `chrome.storage.local` に `{ moodMode, view, lang }`。`init()` の最初に読み込んでから描画する。
 - サイト内検索の登録一覧は別キー `siteSearches`(`{id,name,keyword,url,icon,color}[]`)。同じく `init()` で読み込む。保存は `saveSettings()` とは別の `saveSiteSearches()`。
+- `HELP_ROWS` の3番目の要素(mode)は `"plain"`(実在するキーがない行 — バッジ化しない)か省略時の既定 `"badges"`。`badges` モードの `i18n.js` 側の値は簡易DSL:`|` で複数キーに分割(それぞれ独立した `.kbd` バッジ)、`::` の後ろは地の文の補足(バッジ化しない)。この2文字("|"、"::")は翻訳文言の中では区切り文字として予約されているので、キー表記そのものに使わない(今のところ衝突なし)。
+
+## `<details>`/`<summary>` の折りたたみ確認方法
+
+- AIサポートのブロックは `<details>` で折りたたんでいる(JS状態管理なし)。**折りたたみの確認を `getComputedStyle().display` や `offsetParent`、`getBoundingClientRect()` でやると「非表示になっていない」ように見えて誤検知する** — Chromium はこの折りたたみを子要素自身の `display` を変えずに(内部の `::details-content` 相当の層で)実現しているため、子要素側からは畳まれているかどうか分からない。
+- 正しい確認方法は Playwright の `locator.isVisible()`(実際の可視性アルゴリズムを使う)か、素直にスクリーンショットで目視すること。
