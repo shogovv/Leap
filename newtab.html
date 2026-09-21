@@ -73,7 +73,9 @@
   }
   /* the main settings modal specifically (not the narrower add/edit dialog, which shares
      .settings-panel's base styling but stays at the default width) */
-  #settingsBackdrop .settings-panel{ width:540px; }
+  #settingsBackdrop .settings-panel{ width:600px; }
+  .settings-row-2col{ display:flex; gap:20px; }
+  .settings-col{ flex:1; min-width:0; }
   .modal-header{
     display:flex; align-items:center; justify-content:space-between;
     padding:14px 14px 10px; position:sticky; top:0; background:var(--card); z-index:1;
@@ -101,7 +103,11 @@
   body[data-mood="night"] .modal-backdrop, body[data-mood="latenight"] .modal-backdrop{ background:rgba(0,0,0,0.55); }
   body[data-mood="night"] .settings-panel, body[data-mood="latenight"] .settings-panel{ box-shadow:0 20px 50px rgba(0,0,0,0.6); border-color:var(--sub); }
 
-  .mood-list{ display:flex; flex-direction:column; gap:2px; }
+  /* the "auto" row stays full-width (it's a different kind of choice — "let the clock
+     decide" — from the 5 concrete moods below it, which fit a compact grid now that the
+     modal is wide enough for one) */
+  .mood-list{ display:flex; flex-direction:column; gap:6px; }
+  .mood-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:4px; }
   .mood-row{
     display:flex; align-items:center; gap:9px; padding:7px 8px; border-radius:8px; cursor:pointer; font-size:13px;
     border:none; background:transparent; width:100%; text-align:left; color:var(--ink); font-family:inherit;
@@ -110,6 +116,7 @@
   .mood-row .dot{ width:8px; height:8px; border-radius:50%; border:1.5px solid var(--sub); flex-shrink:0; }
   .mood-row.active .dot{ background:var(--accent1); border-color:var(--accent1); }
   .mood-row.active{ font-weight:700; }
+  .mood-grid .mood-row{ padding:7px 6px; font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
   .link-row{
     display:flex; align-items:center; gap:9px; padding:8px; border-radius:8px; text-decoration:none; color:var(--ink); font-size:13px; cursor:pointer;
@@ -187,13 +194,28 @@
   .btn-cancel{ background:transparent; color:var(--sub); }
   .btn-save{ background:var(--accent1); color:#fff; border-color:var(--accent1); font-weight:700; }
 
-  .help-list{ display:flex; flex-direction:column; gap:7px; font-size:12px; }
-  .help-row{ display:flex; justify-content:space-between; gap:10px; align-items:baseline;}
-  .kbd{ background:var(--paper2); border:1px solid var(--card-border); border-radius:4px; padding:1px 6px; font-size:11px; white-space:nowrap; font-family:inherit;}
+  /* a "key" (.kbd) is a real, short badge; a "note" is plain muted text for a condition
+     that isn't itself a keystroke ("or Enter with 0 matches") — mixing the two into one
+     compound string used to make the badge unreadable */
+  .help-list{ display:flex; flex-direction:column; gap:8px; font-size:12.5px; }
+  .help-row{ display:flex; justify-content:space-between; gap:10px; align-items:baseline; flex-wrap:wrap; }
+  .help-keys{ display:flex; flex-wrap:wrap; gap:4px; justify-content:flex-end; align-items:baseline; }
+  .kbd{ background:var(--paper2); border:1px solid var(--card-border); border-radius:4px; padding:1.5px 6px; font-size:11.5px; white-space:nowrap; font-family:inherit;}
+  .help-plain, .help-note{ font-size:11.5px; color:var(--sub); white-space:nowrap; }
 
   .about-text{ font-size:12.5px; line-height:1.6; color:var(--ink); margin-bottom:8px; }
   .about-version{ font-size:11px; color:var(--sub); margin-bottom:10px; }
 
+  /* collapsed by default (no [open]) — a rarely-used block shouldn't cost every visit to
+     Settings its own scroll of screen space. Native <details> needs no JS to toggle. */
+  .ai-details summary{
+    list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:0;
+  }
+  .ai-details summary::-webkit-details-marker{ display:none; }
+  .ai-details summary::after{ content:"▸"; color:var(--sub); font-size:9px; }
+  .ai-details[open] summary::after{ content:"▾"; }
+  .ai-details[open] summary{ margin-bottom:8px; }
   .ai-hint{ font-size:11px; color:var(--sub); line-height:1.5; margin-bottom:8px; }
   .ai-prompt{
     width:100%; box-sizing:border-box; font-family:"Zen Maru Gothic",sans-serif; font-size:11px; line-height:1.6;
@@ -482,24 +504,27 @@
       </div>
 
       <div class="settings-section">
-        <div class="settings-label" id="viewLabel">View</div>
-        <div class="segmented">
-          <button id="btnGrid" data-view="grid"></button>
-          <button id="btnList" data-view="list" class="active"></button>
+        <div class="settings-row-2col">
+          <div class="settings-col">
+            <div class="settings-label" id="viewLabel">View</div>
+            <div class="segmented">
+              <button id="btnGrid" data-view="grid"></button>
+              <button id="btnList" data-view="list" class="active"></button>
+            </div>
+          </div>
+          <div class="settings-col">
+            <div class="settings-label" id="langLabel">Language</div>
+            <div class="segmented">
+              <button id="btnLangJa" data-lang="ja" class="active">日本語</button>
+              <button id="btnLangEn" data-lang="en">English</button>
+            </div>
+          </div>
         </div>
       </div>
 
       <div class="settings-section">
         <div class="settings-label" id="moodLabel">Mood</div>
         <div class="mood-list" id="moodList"></div>
-      </div>
-
-      <div class="settings-section">
-        <div class="settings-label" id="langLabel">Language</div>
-        <div class="segmented">
-          <button id="btnLangJa" data-lang="ja" class="active">日本語</button>
-          <button id="btnLangEn" data-lang="en">English</button>
-        </div>
       </div>
 
       <div class="settings-section">
@@ -544,10 +569,12 @@
       </div>
 
       <div class="settings-section">
-        <div class="settings-label" id="aiLabel">Ask an AI</div>
-        <div class="ai-hint" id="aiHint"></div>
-        <textarea class="ai-prompt" id="aiPromptText" readonly></textarea>
-        <button class="copy-btn" id="btnCopyPrompt"></button>
+        <details class="ai-details" id="aiDetails">
+          <summary class="settings-label ai-summary" id="aiLabel">Ask an AI</summary>
+          <div class="ai-hint" id="aiHint"></div>
+          <textarea class="ai-prompt" id="aiPromptText" readonly></textarea>
+          <button class="copy-btn" id="btnCopyPrompt"></button>
+        </details>
       </div>
     </div>
   </div>
