@@ -1134,7 +1134,7 @@ siteSearchDialogBackdrop.addEventListener("keydown", (e)=>{
 function tick(){
   const now = new Date();
   const locale = currentLang === "en" ? "en-US" : "ja-JP";
-  document.getElementById("time").textContent = now.toLocaleTimeString(locale,{hour:'2-digit',minute:'2-digit'});
+  document.getElementById("time").textContent = now.toLocaleTimeString(locale,{hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
   document.getElementById("date").textContent = now.toLocaleDateString(locale,{year:'numeric',month:'long',day:'numeric',weekday:'long'});
 }
 tick(); setInterval(tick,1000*30);
