@@ -19,8 +19,8 @@
   body[data-mood="dawn"]{ --paper:#fbe3d8; --paper2:#f6cfc0; --ink:#4a2f2a; --sub:#9c7267; --card:#fff8f2; --card-border:#f0d3c2; }
   body[data-mood="day"]{ --paper:#f3ecdd; --paper2:#ece2cc; --ink:#3a2f22; --sub:#8c7f68; --card:#fffdf6; --card-border:#e4d7bb; }
   body[data-mood="dusk"]{ --paper:#f0d9b0; --paper2:#e7c084; --ink:#402a1a; --sub:#8a6b45; --card:#fff3df; --card-border:#e3c48f; }
-  body[data-mood="night"]{ --paper:#2b2620; --paper2:#38302a; --ink:#ece3d2; --sub:#a89b85; --card:#37302a; --card-border:#4a4136; }
-  body[data-mood="latenight"]{ --paper:#17140f; --paper2:#211d17; --ink:#cfc3ab; --sub:#7d7161; --card:#221e18; --card-border:#332c22; }
+  body[data-mood="night"]{ --paper:#2b2620; --paper2:#38302a; --ink:#ece3d2; --sub:#bfb39d; --card:#37302a; --card-border:#4a4136; }
+  body[data-mood="latenight"]{ --paper:#17140f; --paper2:#211d17; --ink:#cfc3ab; --sub:#a29580; --card:#221e18; --card-border:#332c22; }
 
   *{box-sizing:border-box;}
   html,body{ height:100%; }
@@ -91,6 +91,12 @@
     font-size:12.5px; color:var(--sub); font-family:inherit;
   }
   .segmented button.active{ background:var(--card); color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,0.1); font-weight:700; }
+  /* on dark paper --paper2 and --card are nearly the same tone, so the toggle needs its own
+     contrast: a darker track, a lighter active pill, and a scrim/panel edge that separates the modal */
+  body[data-mood="night"] .segmented, body[data-mood="latenight"] .segmented{ background:var(--paper); }
+  body[data-mood="night"] .segmented button.active, body[data-mood="latenight"] .segmented button.active{ background:var(--card-border); }
+  body[data-mood="night"] .modal-backdrop, body[data-mood="latenight"] .modal-backdrop{ background:rgba(0,0,0,0.55); }
+  body[data-mood="night"] .settings-panel, body[data-mood="latenight"] .settings-panel{ box-shadow:0 20px 50px rgba(0,0,0,0.6); border-color:var(--sub); }
 
   .mood-list{ display:flex; flex-direction:column; gap:2px; }
   .mood-row{
@@ -198,7 +204,7 @@
   .search-bar{
     position:sticky; top:16px;
     display:inline-flex; align-items:center; gap:10px;
-    background:#fff9e8; border:1px solid var(--card-border);
+    background:var(--card); border:1px solid var(--card-border);
     box-shadow:0 4px 12px rgba(58,47,34,0.14);
     padding:9px 16px; border-radius:8px;
     font-size:16px; font-family:"Kalam",cursive; font-weight:700;
@@ -210,6 +216,9 @@
      cursive fallback) so vertical metrics match the rest of the bar */
   .search-bar .query-input{ font-family:"Kalam","Zen Maru Gothic",cursive; line-height:1.4; }
   .search-bar .query-input::placeholder{ color:var(--sub); opacity:.4; font-weight:400; font-size:13.5px; }
+  /* on dark paper the same faded --sub nearly vanishes, so the night moods get a bit more opacity */
+  body[data-mood="night"] .search-bar .query-input::placeholder,
+  body[data-mood="latenight"] .search-bar .query-input::placeholder{ opacity:.65; }
   /* Japanese text inside a Kalam-metric line box sits ~1.5px above center; giving the
      placeholder its own Zen Maru Gothic line box (it's a separate block) centers it */
   html[lang="ja"] .search-bar .query-input::placeholder{ font-family:"Zen Maru Gothic",sans-serif; }
