@@ -35,8 +35,11 @@ Leap/
 
 - `init()` — 設定読み込み → ブックマーク/タブ/閉じたタブを並列ロード → `setMood` → `rollPlaceholder` → `render`
 - `render()` / `applyHints()` — 描画と、選択・ヒント・件数表示・Web検索ボタンの選択状態の更新
-- `queryInput` の `keydown` — Enter / Ctrl+Enter / 矢印 / Tab / Ctrl+P・N / Ctrl+文字。`paste` — URL 即遷移
+- `handleQueryChange()` — `input`/`compositionend` の入口。サイト内検索が発動中はプレビュー更新のみ、そうでなければ `<keyword> ` プレフィックスを見て発動判定してから `render()`
+- `queryInput` の `keydown` — Enter / Ctrl+Enter / 矢印 / Tab / Ctrl+P・N / Ctrl+文字 / (発動中の) Backspace 解除。`paste` — URL 即遷移
 - `doWebSearch()` — `chrome.search.query`
+- `activateSiteSearch()` / `deactivateSiteSearch()` / `fireSiteSearch()` — サイト内検索チップの発動・解除・Enter での遷移
+- `renderSiteSearchList()` / `openSiteSearchDialog()` / `saveSiteSearchDialog()` — 設定モーダルの一覧と追加・編集ダイアログ(`siteSearches` を `chrome.storage.local` に保存)
 - `HELP_ROWS` + `renderSettingsPanel()` — 設定モーダルの使い方一覧(文言は `i18n.js` の `helpXxx`)
 - `switchLanguage()` — 言語切替(挨拶・プレースホルダー・ラベル・描画を再構築)
 

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Leap",
   "version": "1.0.0",
-  "description": "A keyboard-first new tab page. Search bookmarks, open tabs, and recently closed tabs as you type, or paste a URL or search the web.",
+  "description": "A keyboard-first new tab page. Search bookmarks, tabs, and closed tabs as you type, plus your own site-search shortcuts.",
   "chrome_url_overrides": {
     "newtab": "newtab.html"
   },
