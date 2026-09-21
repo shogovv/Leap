@@ -80,6 +80,11 @@ const MESSAGES = {
     siteSearchPreviewQuery: "「{query}」で検索",
     siteSearchHintOpen: "開く",
     siteSearchHintDismiss: "解除",
+    siteSearchExportTooltip: "エクスポート（JSONファイルに書き出す）",
+    siteSearchImportTooltip: "インポート（JSONファイルから読み込む）",
+    siteSearchImportSuccess: "{count}件をインポートしました",
+    siteSearchImportEmpty: "登録できる項目がありませんでした",
+    siteSearchImportError: "読み込みに失敗しました（JSON形式を確認してください）",
 
     aboutLabel: "About",
     aboutText: "Leap — 紙の質感と時間帯で表情を変えるムード、キーボードだけで完結する新しいタブページ。",
@@ -176,6 +181,11 @@ const MESSAGES = {
     siteSearchPreviewQuery: "Search for \"{query}\"",
     siteSearchHintOpen: "Open",
     siteSearchHintDismiss: "Dismiss",
+    siteSearchExportTooltip: "Export (save as a JSON file)",
+    siteSearchImportTooltip: "Import (load from a JSON file)",
+    siteSearchImportSuccess: "Imported {count}",
+    siteSearchImportEmpty: "Nothing valid to import",
+    siteSearchImportError: "Failed to import (check the JSON file)",
 
     aboutLabel: "About",
     aboutText: "Leap — a new-tab page with a paper feel, a mood that shifts through the day, and a search you can drive entirely from the keyboard.",

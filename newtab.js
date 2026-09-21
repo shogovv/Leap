@@ -239,6 +239,22 @@ function updateSiteSearchPreview(){
   matchCountEl.textContent = q ? t("siteSearchPreviewQuery").replace("{query}", q) : t("siteSearchPreviewEmpty");
 }
 
+// re-paints the chip/panel from activeSiteSearch's current data — needed whenever the
+// active entry's own fields change out from under it (editing it in the dialog, or an
+// import that updates it by keyword) without going through activate/deactivate. Without
+// this the DOM (name, icon, --engine-color) stays stale even though the object itself
+// (same reference activeSiteSearch points to) already has the new values, so Enter would
+// silently navigate to a new URL while the chip still shows the old name/icon/color.
+function syncActiveSiteSearchUI(){
+  if(!activeSiteSearch) return;
+  document.body.style.setProperty("--engine-color", activeSiteSearch.color);
+  renderIconInto(engineChipIcoBadgeEl, activeSiteSearch.icon);
+  engineChipNameEl.textContent = activeSiteSearch.name;
+  renderIconInto(enginePanelIcoEl, activeSiteSearch.icon);
+  enginePanelNameEl.textContent = activeSiteSearch.name;
+  updateSiteSearchPreview();
+}
+
 function activateSiteSearch(entry, remainder){
   activeSiteSearch = entry;
   hideTooltip();
@@ -868,6 +884,9 @@ function renderSettingsPanel(){
 
   document.getElementById("siteSearchLabel").textContent = t("siteSearchLabel");
   document.getElementById("siteSearchAddLabel").textContent = t("siteSearchAdd");
+  document.getElementById("btnExportSiteSearch").title = t("siteSearchExportTooltip");
+  document.getElementById("btnImportSiteSearch").title = t("siteSearchImportTooltip");
+  document.getElementById("ssIoStatus").textContent = "";
   renderSiteSearchList();
 
   document.getElementById("helpLabel").textContent = t("helpLabel");
@@ -938,6 +957,10 @@ const ssIconErrorEl = document.getElementById("ssIconError");
 const ssCancelBtn = document.getElementById("ssCancelBtn");
 const ssSaveBtn = document.getElementById("ssSaveBtn");
 const ssDialogClose = document.getElementById("ssDialogClose");
+const btnExportSiteSearch = document.getElementById("btnExportSiteSearch");
+const btnImportSiteSearch = document.getElementById("btnImportSiteSearch");
+const ssImportFileEl = document.getElementById("ssImportFile");
+const ssIoStatusEl = document.getElementById("ssIoStatus");
 
 const ICON_SUGGESTIONS = ["📦","🛒","🔎","⭐","📺","🎬","💻","📚","🍔","✈️","🎵","🐦","💰","📰","🎨","🏠"];
 const ICON_MAX_BYTES = 200 * 1024; // uploaded icons are stored as data: URLs directly in
@@ -1078,15 +1101,8 @@ function saveSiteSearchDialog(){
   if(editingSiteSearchId){
     const entry = siteSearches.find(s => s.id === editingSiteSearchId);
     entry.name = name; entry.keyword = keyword; entry.url = url; entry.icon = icon;
-    if(activeSiteSearch && activeSiteSearch.id === entry.id){
-      // keep the live chip/panel in sync if the entry being edited is the one active right now
-      searchBarEl.style.setProperty("--engine-color", entry.color);
-      renderIconInto(engineChipIcoBadgeEl, entry.icon);
-      engineChipNameEl.textContent = entry.name;
-      renderIconInto(enginePanelIcoEl, entry.icon);
-      enginePanelNameEl.textContent = entry.name;
-      updateSiteSearchPreview();
-    }
+    // keep the live chip/panel in sync if the entry being edited is the one active right now
+    if(activeSiteSearch && activeSiteSearch.id === entry.id) syncActiveSiteSearchUI();
   } else {
     siteSearches.push({
       id: newSiteSearchId(), name, keyword, url, icon,
@@ -1097,6 +1113,92 @@ function saveSiteSearchDialog(){
   renderSiteSearchList();
   closeSiteSearchDialog();
 }
+
+// ===== export/import: a JSON file holding the same shape saveSiteSearchDialog() writes =====
+// (icons come along as-is — a data: URL uploaded icon round-trips fine as a JSON string)
+function exportSiteSearches(){
+  const blob = new Blob([JSON.stringify(siteSearches, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "leap-site-searches.json";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// same shape rules as saveSiteSearchDialog()'s own validation (name/keyword required, no
+// whitespace in the keyword, %s in the URL, https:// prepended if missing) — returns null
+// for anything that doesn't qualify, so a bad file just silently drops the bad rows
+function normalizeImportedSiteSearch(raw){
+  if(!raw || typeof raw !== "object") return null;
+  const name = typeof raw.name === "string" ? raw.name.trim() : "";
+  const keyword = typeof raw.keyword === "string" ? raw.keyword.trim() : "";
+  let url = typeof raw.url === "string" ? raw.url.trim() : "";
+  if(url && !/^https?:\/\//i.test(url)) url = "https://" + url;
+  if(!name || !keyword || /\s/.test(keyword) || !url || !url.includes("%s")) return null;
+  const icon = typeof raw.icon === "string" && raw.icon ? raw.icon : "🔎";
+  const color = typeof raw.color === "string" && /^var\(--accent\d\)$/.test(raw.color) ? raw.color : null;
+  return { name, keyword, url, icon, color };
+}
+
+// merges by keyword: an imported entry whose keyword already exists updates that entry in
+// place (keeping its id/color unless the import specifies its own valid color); anything new
+// is appended — this is what makes re-importing a backup, or a file shared by someone else,
+// actually useful instead of just erroring on the first collision
+function importSiteSearches(file){
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    let imported;
+    try { imported = JSON.parse(reader.result); } catch { imported = null; }
+    if(!Array.isArray(imported)){
+      ssIoStatusEl.textContent = t("siteSearchImportError");
+      ssIoStatusEl.classList.add("error");
+      return;
+    }
+    let count = 0;
+    let activeWasUpdated = false;
+    imported.forEach(raw=>{
+      const clean = normalizeImportedSiteSearch(raw);
+      if(!clean) return;
+      const existing = siteSearches.find(s => s.keyword.toLowerCase() === clean.keyword.toLowerCase());
+      if(existing){
+        existing.name = clean.name; existing.url = clean.url; existing.icon = clean.icon;
+        if(clean.color) existing.color = clean.color;
+        if(activeSiteSearch && activeSiteSearch.id === existing.id) activeWasUpdated = true;
+      } else {
+        siteSearches.push({
+          id: newSiteSearchId(),
+          name: clean.name, keyword: clean.keyword, url: clean.url, icon: clean.icon,
+          color: clean.color || ACCENT_CYCLE[siteSearches.length % ACCENT_CYCLE.length],
+        });
+      }
+      count++;
+    });
+    // the imported entry and activeSiteSearch are the same object (siteSearches.find()
+    // returns the live reference), so its data is already correct — only the DOM is stale
+    if(activeWasUpdated) syncActiveSiteSearchUI();
+    if(count > 0){
+      saveSiteSearches();
+      renderSiteSearchList();
+      ssIoStatusEl.textContent = t("siteSearchImportSuccess").replace("{count}", count);
+      ssIoStatusEl.classList.remove("error");
+    } else {
+      ssIoStatusEl.textContent = t("siteSearchImportEmpty");
+      ssIoStatusEl.classList.add("error");
+    }
+  };
+  reader.readAsText(file);
+}
+
+btnExportSiteSearch.addEventListener("click", exportSiteSearches);
+btnImportSiteSearch.addEventListener("click", ()=> ssImportFileEl.click());
+ssImportFileEl.addEventListener("change", ()=>{
+  const file = ssImportFileEl.files && ssImportFileEl.files[0];
+  ssImportFileEl.value = "";
+  if(file) importSiteSearches(file);
+});
 
 ssIconEmojiInputEl.addEventListener("input", ()=>{ setIconPreview(ssIconEmojiInputEl.value || "🔎"); });
 ssIconUploadBtn.addEventListener("click", ()=> ssIconFileEl.click());
