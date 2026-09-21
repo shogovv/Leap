@@ -168,7 +168,129 @@ const greetingEl = document.getElementById("greeting");
 const starsEl = document.getElementById("stars");
 const tooltipEl = document.getElementById("tooltip");
 const webSearchBtn = document.getElementById("btnWebSearch");
+const searchBarEl = document.getElementById("searchBar");
+const contentEl = document.getElementById("content");
 
+// ===== site search: registered "shortcut → %s URL" search engines =====
+// data model: { id, name, keyword, url, icon, color }[], persisted in chrome.storage.local
+// under "siteSearches". `color` is a var(--accentN) string assigned once at creation from
+// ACCENT_CYCLE (same pool folders use) so a chip's color stays put even if other entries
+// are later deleted. `icon` is either an emoji/text glyph or a data: URL the user uploaded.
+let siteSearches = [];
+let activeSiteSearch = null; // the matched entry once a "<keyword> " prefix has locked in
+
+function saveSiteSearches(){
+  try { chrome.storage.local.set({ siteSearches }); } catch {}
+}
+function findSiteSearch(keyword){
+  return siteSearches.find(s => s.keyword.toLowerCase() === keyword.toLowerCase());
+}
+// only an exact match on the token before the first space activates — the same rule
+// Chrome's own omnibox keywords use, and why an ordinary multi-word search essentially
+// never collides with a registered shortcut by accident
+function matchSiteSearchPrefix(value){
+  const m = value.match(/^(\S+)\s(.*)$/);
+  if(!m) return null;
+  const entry = findSiteSearch(m[1]);
+  return entry ? { entry, remainder: m[2] } : null;
+}
+
+const engineChipIcoBadgeEl = document.getElementById("engineChipIcoBadge");
+const engineChipNameEl = document.getElementById("engineChipName");
+const engineChipCloseEl = document.getElementById("engineChipClose");
+const enginePanelEl = document.getElementById("enginePanel");
+const enginePanelIcoEl = document.getElementById("enginePanelIco");
+const enginePanelPrefixEl = document.getElementById("enginePanelPrefix");
+const enginePanelNameEl = document.getElementById("enginePanelName");
+const enginePanelSuffixEl = document.getElementById("enginePanelSuffix");
+const enginePanelUrlEl = document.getElementById("enginePanelUrl");
+const enginePanelHintOpenLabelEl = document.getElementById("enginePanelHintOpenLabel");
+const enginePanelHintDismissLabelEl = document.getElementById("enginePanelHintDismissLabel");
+
+// icon rendering is shared by the chip, the preview panel, the settings list, and the
+// dialog's own preview swatch — an uploaded icon is a data: URL, anything else is shown as
+// literal text (an emoji, almost always)
+function renderIconInto(container, icon){
+  container.innerHTML = "";
+  if(typeof icon === "string" && icon.startsWith("data:")){
+    const img = document.createElement("img");
+    img.src = icon;
+    container.appendChild(img);
+  } else {
+    container.textContent = icon || "🔎";
+  }
+}
+
+// "{name}を検索" (ja) vs "Search {name}" (en) — word order differs, so the template is
+// split around the placeholder once (on init/language switch) into a prefix/suffix that
+// wrap a separate, frequently-updated name span
+function applySiteSearchLeadTemplate(){
+  const template = t("siteSearchLead");
+  const idx = template.indexOf("{name}");
+  if(idx === -1){ enginePanelPrefixEl.textContent = ""; enginePanelSuffixEl.textContent = template; return; }
+  enginePanelPrefixEl.textContent = template.slice(0, idx);
+  enginePanelSuffixEl.textContent = template.slice(idx + "{name}".length);
+}
+
+function updateSiteSearchPreview(){
+  if(!activeSiteSearch) return;
+  const q = queryInput.value;
+  enginePanelUrlEl.textContent = activeSiteSearch.url.replace("%s", encodeURIComponent(q));
+  matchCountEl.textContent = q ? t("siteSearchPreviewQuery").replace("{query}", q) : t("siteSearchPreviewEmpty");
+}
+
+function activateSiteSearch(entry, remainder){
+  activeSiteSearch = entry;
+  hideTooltip();
+  searchBarEl.classList.add("engine-active");
+  searchBarEl.style.setProperty("--engine-color", entry.color);
+  renderIconInto(engineChipIcoBadgeEl, entry.icon);
+  engineChipNameEl.textContent = entry.name;
+  renderIconInto(enginePanelIcoEl, entry.icon);
+  enginePanelNameEl.textContent = entry.name;
+  emptyEl.classList.remove("show");
+  contentEl.classList.add("engine-mode");
+  webSearchBtn.classList.add("muted");
+  // clear any hints/selection left over from just before activating — the grid/list stay
+  // rendered underneath (just dimmed), but are no longer the keyboard's target
+  document.querySelectorAll(".hint").forEach(h=>h.remove());
+  activeHints = {};
+  selectedIndex = -1;
+  queryInput.value = remainder;
+  updateSiteSearchPreview();
+}
+
+function deactivateSiteSearch(){
+  activeSiteSearch = null;
+  searchBarEl.classList.remove("engine-active");
+  contentEl.classList.remove("engine-mode");
+  webSearchBtn.classList.remove("muted");
+}
+
+// every incremental-search keystroke goes through here first: while a site search is
+// active it just updates the preview; otherwise it checks for a fresh "<keyword> " prefix
+// before falling back to the normal bookmark/tab render()
+function handleQueryChange(){
+  if(activeSiteSearch){ updateSiteSearchPreview(); return; }
+  const match = matchSiteSearchPrefix(queryInput.value);
+  if(match){ activateSiteSearch(match.entry, match.remainder); return; }
+  render();
+}
+
+// navigates this tab to the built URL — mirrors activate()'s "bookmarks navigate in place"
+// behavior and confirmActivate()'s flash-then-go timing, just on the panel instead of an anchor
+function fireSiteSearch(){
+  if(!activeSiteSearch) return;
+  const finalUrl = activeSiteSearch.url.replace("%s", encodeURIComponent(queryInput.value.trim()));
+  enginePanelEl.classList.add("firing");
+  clearQueryInput(); // silent, same as confirmActivate() — no flash back to the normal view first
+  setTimeout(()=>{ location.href = finalUrl; }, CONFIRM_DELAY_MS);
+}
+
+engineChipCloseEl.addEventListener("click", ()=>{
+  resetQuery();
+  queryInput.focus();
+});
 
 function moodForHour(h){
   if(h>=5 && h<8) return "dawn";
@@ -347,6 +469,10 @@ function confirmActivate(a){
 }
 
 function getVisibleAnchors(){
+  // while a site search is active the grid/list stay rendered underneath (just dimmed and
+  // non-interactive) — keyboard navigation shouldn't move a hidden selection around behind
+  // the panel, so every caller of this (arrows, Tab, Ctrl+P/N, Ctrl+letter hints) sees none
+  if(activeSiteSearch) return [];
   const activeContainer = currentView === "grid" ? gridEl : listEl;
   return Array.from(activeContainer.querySelectorAll("a")).filter(a => a.offsetParent !== null);
 }
@@ -439,7 +565,11 @@ function applyHints(){
 // away or switching tabs), so the full list doesn't flash back into view while we're still
 // visible for that one frame. render() then only happens once we're actually back (focus).
 function clearQueryInput(){ queryInput.value = ""; }
-function resetQuery(){ clearQueryInput(); render(); }
+function resetQuery(){
+  if(activeSiteSearch) deactivateSiteSearch();
+  clearQueryInput();
+  render();
+}
 
 // a pasted URL skips incremental search entirely and navigates this tab there immediately —
 // this page IS the current tab, so a plain location.href assignment is enough (same
@@ -469,9 +599,9 @@ async function doWebSearch(){
 // so skip those and only search once the reading is actually committed.
 queryInput.addEventListener("input", (e)=>{
   if(e.isComposing) return;
-  render();
+  handleQueryChange();
 });
-queryInput.addEventListener("compositionend", ()=>{ render(); });
+queryInput.addEventListener("compositionend", ()=>{ handleQueryChange(); });
 queryInput.addEventListener("paste", (e)=>{
   const pasted = (e.clipboardData || window.clipboardData).getData("text");
   if(!isUrlLike(pasted)) return; // not URL-like — let it paste normally into incremental search
@@ -481,13 +611,28 @@ queryInput.addEventListener("paste", (e)=>{
 });
 queryInput.addEventListener("keydown", (e)=>{
   if(e.key === "Escape"){ e.preventDefault(); resetQuery(); return; }
+  // caret sitting right after the chip (position 0 of the remainder) + Backspace un-does
+  // the activation instead of eating into the shortcut text — puts "<keyword> " back so
+  // the same keystroke that made the chip can un-make it
+  if(activeSiteSearch && e.key === "Backspace" && queryInput.selectionStart === 0 && queryInput.selectionEnd === 0){
+    e.preventDefault();
+    const keyword = activeSiteSearch.keyword;
+    deactivateSiteSearch();
+    queryInput.value = keyword + " ";
+    render();
+    requestAnimationFrame(()=>{ queryInput.setSelectionRange(queryInput.value.length, queryInput.value.length); });
+    return;
+  }
   if(e.key === "Enter"){
     // the Enter that confirms an IME conversion (isComposing, or keyCode 229 on browsers
     // that already report isComposing:false by the time this fires) must not also activate
     // a result — otherwise finishing kanji conversion doubles as "open the top bookmark"
     if(e.isComposing || e.keyCode === 229) return;
     e.preventDefault();
+    // Ctrl+Enter is always the escape hatch to a plain default-engine search, even while a
+    // site search is active — see philosophy.md for why that "way out" has to stay reachable
     if(e.ctrlKey || e.metaKey){ doWebSearch(); return; }
+    if(activeSiteSearch){ fireSiteSearch(); return; }
     const anchors = getVisibleAnchors();
     if(anchors[selectedIndex]) confirmActivate(anchors[selectedIndex]);
     else doWebSearch();
@@ -516,12 +661,12 @@ document.addEventListener("click", (e)=>{
   setTimeout(()=>queryInput.focus(), 0);
 });
 // capture phase so this runs before queryInput's own Escape (clear search) handler —
-// closing the settings modal takes priority when it's open, regardless of what has focus
+// closing whichever modal is open takes priority, regardless of what has focus. The site
+// search dialog nests on top of the settings modal, so it gets first refusal.
 document.addEventListener("keydown", (e)=>{
-  if(e.key === "Escape" && isModalOpen()){
-    e.preventDefault(); e.stopPropagation();
-    closeModal();
-  }
+  if(e.key !== "Escape") return;
+  if(isSiteSearchDialogOpen()){ e.preventDefault(); e.stopPropagation(); closeSiteSearchDialog(); return; }
+  if(isModalOpen()){ e.preventDefault(); e.stopPropagation(); closeModal(); }
 }, true);
 window.addEventListener("focus", ()=>{ queryInput.focus(); render(); });
 queryInput.focus();
@@ -657,8 +802,19 @@ const HELP_ROWS = [
   ["helpNarrow","helpNarrowKey"], ["helpAnd","helpAndKey"], ["helpPasteUrl","helpPasteUrlKey"],
   ["helpMoveUpDown","helpMoveUpDownKey"], ["helpMoveLeftRight","helpMoveLeftRightKey"],
   ["helpOpen","helpOpenKey"], ["helpWebSearch","helpWebSearchKey"],
+  ["helpSiteSearch","helpSiteSearchKey"],
   ["helpJump","helpJumpKey"], ["helpClear","helpClearKey"],
 ];
+
+// static labels outside the settings modal that still need re-applying on init/language
+// switch — the chip's tooltip and the always-mounted engine panel's hint row
+function applySiteSearchStaticLabels(){
+  engineChipCloseEl.title = t("siteSearchDismissTooltip");
+  enginePanelHintOpenLabelEl.textContent = t("siteSearchHintOpen");
+  enginePanelHintDismissLabelEl.textContent = t("siteSearchHintDismiss");
+  applySiteSearchLeadTemplate();
+  if(activeSiteSearch) updateSiteSearchPreview();
+}
 
 // rebuilds every translatable string inside the modal — called on open and on language
 // switch, cheap enough (a dozen small elements) to just redo in full each time
@@ -702,6 +858,10 @@ function renderSettingsPanel(){
 
   document.getElementById("editBookmarksLabel").textContent = t("editBookmarks");
 
+  document.getElementById("siteSearchLabel").textContent = t("siteSearchLabel");
+  document.getElementById("siteSearchAddLabel").textContent = t("siteSearchAdd");
+  renderSiteSearchList();
+
   document.getElementById("helpLabel").textContent = t("helpLabel");
   helpListEl.innerHTML = "";
   HELP_ROWS.forEach(([descKey, keyKey])=>{
@@ -731,6 +891,7 @@ function switchLanguage(lang){
   emptyLineIndex = -1;
   rollPlaceholder();
   document.getElementById("webSearchLabel").textContent = "🔍 " + t("webSearchLabel");
+  applySiteSearchStaticLabels();
   render();
   renderSettingsPanel();
 }
@@ -749,6 +910,213 @@ document.getElementById("btnCopyPrompt").addEventListener("click", async ()=>{
   } catch(err){ console.error("newtab: clipboard copy failed", err); }
 });
 
+// ===== settings: site search list + add/edit dialog =====
+const siteSearchListEl = document.getElementById("siteSearchList");
+const btnAddSiteSearch = document.getElementById("btnAddSiteSearch");
+const siteSearchDialogBackdrop = document.getElementById("siteSearchDialogBackdrop");
+const ssDialogTitleEl = document.getElementById("ssDialogTitle");
+const ssFieldNameEl = document.getElementById("ssFieldName");
+const ssFieldKeywordEl = document.getElementById("ssFieldKeyword");
+const ssFieldUrlEl = document.getElementById("ssFieldUrl");
+const ssIconPreviewEl = document.getElementById("ssIconPreview");
+const ssIconEmojiInputEl = document.getElementById("ssIconEmojiInput");
+const ssIconUploadBtn = document.getElementById("ssIconUploadBtn");
+const ssIconFileEl = document.getElementById("ssIconFile");
+const ssIconSuggestionsEl = document.getElementById("ssIconSuggestions");
+const ssNameErrorEl = document.getElementById("ssNameError");
+const ssKeywordErrorEl = document.getElementById("ssKeywordError");
+const ssUrlErrorEl = document.getElementById("ssUrlError");
+const ssIconErrorEl = document.getElementById("ssIconError");
+const ssCancelBtn = document.getElementById("ssCancelBtn");
+const ssSaveBtn = document.getElementById("ssSaveBtn");
+const ssDialogClose = document.getElementById("ssDialogClose");
+
+const ICON_SUGGESTIONS = ["📦","🛒","🔎","⭐","📺","🎬","💻","📚","🍔","✈️","🎵","🐦","💰","📰","🎨","🏠"];
+const ICON_MAX_BYTES = 200 * 1024; // uploaded icons are stored as data: URLs directly in
+  // chrome.storage.local — kept small since there's no compression, just a size guard
+let editingSiteSearchId = null; // null while the dialog is adding a brand new entry
+let editingIcon = "🔎"; // the dialog's current icon value — emoji text, or a data: URL
+
+function isSiteSearchDialogOpen(){ return siteSearchDialogBackdrop.classList.contains("show"); }
+
+function renderSiteSearchList(){
+  siteSearchListEl.innerHTML = "";
+  if(!siteSearches.length){
+    const empty = document.createElement("div");
+    empty.className = "ss-empty";
+    empty.textContent = t("siteSearchEmpty");
+    siteSearchListEl.appendChild(empty);
+    return;
+  }
+  siteSearches.forEach(entry=>{
+    const row = document.createElement("div");
+    row.className = "ss-row";
+
+    const iconEl = document.createElement("span");
+    iconEl.className = "ss-icon";
+    renderIconInto(iconEl, entry.icon);
+
+    const nameEl = document.createElement("span");
+    nameEl.className = "ss-name";
+    nameEl.textContent = entry.name;
+
+    const shortcutEl = document.createElement("span");
+    shortcutEl.className = "ss-shortcut";
+    shortcutEl.textContent = entry.keyword;
+
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.className = "row-icon-btn";
+    editBtn.title = t("siteSearchEditTooltip");
+    editBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
+    editBtn.addEventListener("click", ()=>openSiteSearchDialog(entry.id));
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "row-icon-btn";
+    deleteBtn.title = t("siteSearchDeleteTooltip");
+    deleteBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>`;
+    deleteBtn.addEventListener("click", ()=>deleteSiteSearch(entry.id));
+
+    row.append(iconEl, nameEl, shortcutEl, editBtn, deleteBtn);
+    siteSearchListEl.appendChild(row);
+  });
+}
+
+function deleteSiteSearch(id){
+  siteSearches = siteSearches.filter(s => s.id !== id);
+  saveSiteSearches();
+  renderSiteSearchList();
+  if(activeSiteSearch && activeSiteSearch.id === id) resetQuery(); // deleting the active one drops back to normal search
+}
+
+function setIconPreview(icon){
+  editingIcon = icon;
+  renderIconInto(ssIconPreviewEl, icon);
+}
+
+function renderIconSuggestions(){
+  ssIconSuggestionsEl.innerHTML = "";
+  ICON_SUGGESTIONS.forEach(emoji=>{
+    const sw = document.createElement("div");
+    sw.className = "icon-swatch";
+    sw.textContent = emoji;
+    // suggestions are shortcuts, not the only choices — the emoji field above accepts
+    // literally anything typed or pasted, including via the OS emoji picker
+    sw.addEventListener("click", ()=>{
+      ssIconEmojiInputEl.value = emoji;
+      setIconPreview(emoji);
+    });
+    ssIconSuggestionsEl.appendChild(sw);
+  });
+}
+renderIconSuggestions();
+
+function openSiteSearchDialog(id){
+  editingSiteSearchId = id;
+  const entry = id ? siteSearches.find(s => s.id === id) : null;
+  ssDialogTitleEl.textContent = entry ? t("siteSearchDialogEditTitle") : t("siteSearchDialogAddTitle");
+  document.getElementById("ssFieldNameLabel").textContent = t("siteSearchFieldName");
+  document.getElementById("ssFieldKeywordLabel").textContent = t("siteSearchFieldKeyword");
+  document.getElementById("ssFieldUrlLabel").textContent = t("siteSearchFieldUrl");
+  document.getElementById("ssFieldIconLabel").textContent = t("siteSearchFieldIcon");
+  document.getElementById("ssIconHint").textContent = t("siteSearchIconHint");
+  ssIconUploadBtn.textContent = t("siteSearchIconUpload");
+  ssCancelBtn.textContent = t("siteSearchCancel");
+  ssSaveBtn.textContent = t("siteSearchSave");
+
+  ssFieldNameEl.value = entry ? entry.name : "";
+  ssFieldKeywordEl.value = entry ? entry.keyword : "";
+  ssFieldUrlEl.value = entry ? entry.url : "";
+  const startIcon = entry ? entry.icon : "🔎";
+  ssIconEmojiInputEl.value = startIcon.startsWith("data:") ? "" : startIcon;
+  setIconPreview(startIcon);
+  [ssNameErrorEl, ssKeywordErrorEl, ssUrlErrorEl, ssIconErrorEl].forEach(el=>el.classList.remove("show"));
+
+  siteSearchDialogBackdrop.classList.add("show");
+  ssFieldNameEl.focus();
+}
+function closeSiteSearchDialog(){
+  siteSearchDialogBackdrop.classList.remove("show");
+  queryInput.focus();
+}
+
+function newSiteSearchId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+function saveSiteSearchDialog(){
+  const name = ssFieldNameEl.value.trim();
+  const keyword = ssFieldKeywordEl.value.trim();
+  const url = ssFieldUrlEl.value.trim();
+  let ok = true;
+  ssNameErrorEl.classList.remove("show");
+  ssKeywordErrorEl.classList.remove("show");
+  ssUrlErrorEl.classList.remove("show");
+
+  if(!name){ ssNameErrorEl.textContent = t("siteSearchErrName"); ssNameErrorEl.classList.add("show"); ok = false; }
+  if(!keyword || /\s/.test(keyword)){
+    ssKeywordErrorEl.textContent = t("siteSearchErrKeyword"); ssKeywordErrorEl.classList.add("show"); ok = false;
+  } else {
+    const dup = siteSearches.find(s => s.id !== editingSiteSearchId && s.keyword.toLowerCase() === keyword.toLowerCase());
+    if(dup){ ssKeywordErrorEl.textContent = t("siteSearchErrKeywordDup"); ssKeywordErrorEl.classList.add("show"); ok = false; }
+  }
+  if(!url || !url.includes("%s")){ ssUrlErrorEl.textContent = t("siteSearchErrUrl"); ssUrlErrorEl.classList.add("show"); ok = false; }
+  if(!ok) return;
+
+  const icon = editingIcon || "🔎";
+  if(editingSiteSearchId){
+    const entry = siteSearches.find(s => s.id === editingSiteSearchId);
+    entry.name = name; entry.keyword = keyword; entry.url = url; entry.icon = icon;
+    if(activeSiteSearch && activeSiteSearch.id === entry.id){
+      // keep the live chip/panel in sync if the entry being edited is the one active right now
+      searchBarEl.style.setProperty("--engine-color", entry.color);
+      renderIconInto(engineChipIcoBadgeEl, entry.icon);
+      engineChipNameEl.textContent = entry.name;
+      renderIconInto(enginePanelIcoEl, entry.icon);
+      enginePanelNameEl.textContent = entry.name;
+      updateSiteSearchPreview();
+    }
+  } else {
+    siteSearches.push({
+      id: newSiteSearchId(), name, keyword, url, icon,
+      color: ACCENT_CYCLE[siteSearches.length % ACCENT_CYCLE.length],
+    });
+  }
+  saveSiteSearches();
+  renderSiteSearchList();
+  closeSiteSearchDialog();
+}
+
+ssIconEmojiInputEl.addEventListener("input", ()=>{ setIconPreview(ssIconEmojiInputEl.value || "🔎"); });
+ssIconUploadBtn.addEventListener("click", ()=> ssIconFileEl.click());
+ssIconFileEl.addEventListener("change", ()=>{
+  const file = ssIconFileEl.files && ssIconFileEl.files[0];
+  ssIconFileEl.value = "";
+  if(!file) return;
+  if(file.size > ICON_MAX_BYTES){
+    ssIconErrorEl.textContent = t("siteSearchIconTooLarge");
+    ssIconErrorEl.classList.add("show");
+    return;
+  }
+  ssIconErrorEl.classList.remove("show");
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    ssIconEmojiInputEl.value = "";
+    setIconPreview(reader.result);
+  };
+  reader.readAsDataURL(file);
+});
+
+btnAddSiteSearch.addEventListener("click", ()=>openSiteSearchDialog(null));
+ssCancelBtn.addEventListener("click", closeSiteSearchDialog);
+ssDialogClose.addEventListener("click", closeSiteSearchDialog);
+ssSaveBtn.addEventListener("click", saveSiteSearchDialog);
+siteSearchDialogBackdrop.addEventListener("click", (e)=>{ if(e.target === siteSearchDialogBackdrop) closeSiteSearchDialog(); });
+// Enter anywhere in the dialog saves it, same one-key-does-the-obvious-thing feel as the
+// rest of the app — there's no multi-line field here for Enter to legitimately mean something else
+siteSearchDialogBackdrop.addEventListener("keydown", (e)=>{
+  if(e.key === "Enter" && !e.isComposing){ e.preventDefault(); saveSiteSearchDialog(); }
+});
+
 function tick(){
   const now = new Date();
   const locale = currentLang === "en" ? "en-US" : "ja-JP";
@@ -761,12 +1129,13 @@ async function init(){
   // load persisted settings first — the language affects loadFolders()'s "untitled
   // folder" fallback text, and moodMode decides whether we even call moodForHour()
   try {
-    const stored = await chrome.storage.local.get(["moodMode","view","lang"]);
+    const stored = await chrome.storage.local.get(["moodMode","view","lang","siteSearches"]);
     settingsLoaded = {
       moodMode: stored.moodMode || "auto",
       view: stored.view || "list",
       lang: stored.lang || "ja",
     };
+    siteSearches = Array.isArray(stored.siteSearches) ? stored.siteSearches : [];
   } catch(err){ console.error("newtab: failed to load settings", err); }
   currentLang = settingsLoaded.lang;
   document.documentElement.lang = currentLang;
@@ -802,6 +1171,7 @@ async function init(){
   setMood(settingsLoaded.moodMode === "auto" ? moodForHour(new Date().getHours()) : settingsLoaded.moodMode);
   rollPlaceholder();
   document.getElementById("webSearchLabel").textContent = "🔍 " + t("webSearchLabel");
+  applySiteSearchStaticLabels();
   render();
 }
 init();

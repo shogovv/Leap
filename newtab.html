@@ -65,6 +65,7 @@
     display:none; align-items:center; justify-content:center; z-index:200;
   }
   .modal-backdrop.show{ display:flex; }
+  .modal-backdrop.nested{ z-index:300; } /* stacks over the settings modal it opens from */
   .settings-panel{
     width:460px; max-width:92vw; max-height:82vh; overflow-y:auto;
     background:var(--card); border:1px solid var(--card-border); border-radius:16px;
@@ -108,6 +109,71 @@
   .link-row:hover{ background:var(--paper2); }
   .link-row .ext-icon{ margin-left:auto; color:var(--sub); flex-shrink:0; }
 
+  /* ===== settings: site search list ===== */
+  .ss-list{ display:flex; flex-direction:column; gap:2px; margin-bottom:4px; }
+  .ss-empty{ font-size:12px; color:var(--sub); padding:6px 2px; }
+  .ss-row{ display:flex; align-items:center; gap:9px; padding:6px 4px; border-radius:8px; font-size:13px; }
+  .ss-row:hover{ background:var(--paper2); }
+  .ss-icon{
+    width:22px; height:22px; border-radius:6px; background:var(--paper2); border:1px solid var(--card-border);
+    display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0; overflow:hidden;
+  }
+  .ss-icon img{ width:100%; height:100%; object-fit:cover; }
+  .ss-name{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ss-shortcut{ font-family:monospace; background:var(--paper2); padding:2px 7px; border-radius:5px; font-size:11.5px; color:var(--sub); flex-shrink:0; }
+  .row-icon-btn{
+    display:flex; align-items:center; justify-content:center; width:24px; height:24px; flex-shrink:0;
+    border-radius:6px; border:none; background:transparent; color:var(--sub); cursor:pointer;
+  }
+  .row-icon-btn:hover{ background:var(--card-border); color:var(--ink); }
+  .add-btn{
+    display:block; margin:6px 0 0 auto; background:var(--card); border:1px solid var(--card-border); color:var(--ink);
+    padding:6px 14px; border-radius:8px; font-family:inherit; font-size:12.5px; font-weight:700; cursor:pointer;
+  }
+  .add-btn:hover{ background:var(--paper2); }
+
+  /* ===== add/edit dialog (nested over the settings modal) ===== */
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:11px; color:var(--sub); font-weight:700; margin-bottom:5px; text-transform:uppercase; letter-spacing:.03em; }
+  .field input[type=text]{
+    width:100%; box-sizing:border-box; background:var(--paper2); border:1px solid var(--card-border); border-radius:8px;
+    padding:8px 10px; font-size:13px; color:var(--ink); font-family:inherit;
+  }
+  .field-error{ font-size:11px; color:var(--accent1); margin-top:5px; display:none; }
+  .field-error.show{ display:block; }
+  .icon-picker{ display:flex; align-items:flex-start; gap:12px; }
+  .icon-current-wrap{ display:flex; flex-direction:column; align-items:center; gap:6px; flex-shrink:0; }
+  .icon-current{
+    width:48px; height:48px; border-radius:10px; background:var(--paper2); border:1.5px solid var(--card-border);
+    display:flex; align-items:center; justify-content:center; font-size:24px; line-height:1;
+    text-align:center; caret-color:var(--accent1); color:var(--ink); font-family:inherit;
+    padding:0; outline:none; overflow:hidden;
+  }
+  .icon-current:focus{ border-color:var(--accent1); background:#fff; }
+  .icon-current img{ width:100%; height:100%; object-fit:cover; }
+  .icon-upload-btn{
+    width:48px; height:22px; padding:0; border-radius:6px; background:var(--card); border:1px dashed var(--card-border);
+    color:var(--sub); font-size:10px; cursor:pointer; font-family:inherit;
+  }
+  .icon-suggest-wrap{ flex:1; min-width:0; }
+  .icon-emoji-input{
+    width:100%; box-sizing:border-box; background:var(--paper2); border:1px solid var(--card-border); border-radius:8px;
+    padding:6px 8px; font-size:15px; text-align:center; margin-bottom:8px; font-family:inherit; color:var(--ink);
+  }
+  .icon-suggest-label{ font-size:10.5px; color:var(--sub); margin-bottom:6px; line-height:1.5; }
+  .icon-suggestions{ display:flex; gap:6px; flex-wrap:wrap; }
+  .icon-swatch{
+    width:26px; height:26px; border-radius:7px; background:var(--paper2); border:1.5px solid transparent;
+    display:flex; align-items:center; justify-content:center; font-size:14px; cursor:pointer; font-family:inherit;
+  }
+  .icon-swatch:hover{ background:#fff; border-color:var(--card-border); }
+  .dialog-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:6px; }
+  .dialog-actions button{
+    padding:8px 16px; border-radius:8px; font-family:inherit; font-size:13px; cursor:pointer; border:1px solid var(--card-border);
+  }
+  .btn-cancel{ background:transparent; color:var(--sub); }
+  .btn-save{ background:var(--accent1); color:#fff; border-color:var(--accent1); font-weight:700; }
+
   .help-list{ display:flex; flex-direction:column; gap:7px; font-size:12px; }
   .help-row{ display:flex; justify-content:space-between; gap:10px; align-items:baseline;}
   .kbd{ background:var(--paper2); border:1px solid var(--card-border); border-radius:4px; padding:1px 6px; font-size:11px; white-space:nowrap; font-family:inherit;}
@@ -148,6 +214,74 @@
      placeholder its own Zen Maru Gothic line box (it's a separate block) centers it */
   html[lang="ja"] .search-bar .query-input::placeholder{ font-family:"Zen Maru Gothic",sans-serif; }
   .search-bar .matches{ font-family:"Zen Maru Gothic",sans-serif; font-size:11px; font-weight:400; color:var(--sub); border-left:1px dashed var(--card-border); padding-left:10px; white-space:nowrap; }
+
+  /* ===== site search: a registered shortcut ("a "+Enter) takes over the bar ===== */
+  .search-bar.engine-active{
+    border-color:var(--engine-color, var(--accent1));
+    box-shadow:0 4px 14px rgba(58,47,34,0.14), 0 0 0 2px color-mix(in srgb, var(--engine-color, var(--accent1)) 25%, transparent);
+  }
+  .engine-chip{
+    /* deliberately plain Zen Maru Gothic, not the bar's Kalam — Kalam's handwritten vertical
+       metrics sit low/high in its own line box (see engineering-notes.md), which looked
+       misaligned next to the plain-font "×". Keeping the whole chip on one plain font keeps
+       everything on the same baseline. */
+    display:none; align-items:center; gap:7px;
+    background:var(--card); border:1.5px solid var(--engine-color, var(--accent1));
+    color:var(--ink); font-family:"Zen Maru Gothic",sans-serif;
+    padding:3px 9px 3px 4px; border-radius:7px; margin-right:9px; font-size:13px; font-weight:700;
+    line-height:1.4; flex-shrink:0;
+    animation: engineChipIn .14s ease-out;
+  }
+  @keyframes engineChipIn{ 0%{ transform:scale(.75); opacity:0; } 100%{ transform:scale(1); opacity:1; } }
+  .search-bar.engine-active .engine-chip{ display:inline-flex; }
+  .engine-chip .ico-badge{
+    width:20px; height:20px; border-radius:5px; background:var(--engine-color, var(--accent1));
+    display:flex; align-items:center; justify-content:center; font-size:12px; line-height:1; flex-shrink:0;
+    overflow:hidden;
+  }
+  .engine-chip .ico-badge img{ width:100%; height:100%; object-fit:cover; }
+  .engine-chip .close{ cursor:pointer; color:var(--sub); font-size:12px; margin-left:2px; line-height:1; }
+  .engine-chip .close:hover{ color:var(--ink); }
+  .search-bar.engine-active .matches{ color:var(--engine-color, var(--accent1)); font-weight:700; border-left-color:color-mix(in srgb, var(--engine-color, var(--accent1)) 40%, var(--card-border)); }
+
+  .web-search-btn{ transition:opacity .15s; }
+  /* エンジン発動中はEnterの主役がそちらに移るので、Ctrl+Enter(既定エンジンへの逃げ道)は
+     機能を残したまま見た目だけ控えめにする。消すと誤発動時に戻れなくなる */
+  .web-search-btn.muted{ opacity:.4; }
+  .web-search-btn.muted:hover{ opacity:.85; }
+
+  .content.engine-mode{ min-height:220px; }
+  .content.engine-mode > .masonry, .content.engine-mode > .listview{
+    opacity:.25; filter:blur(1.5px) grayscale(.3); pointer-events:none; transition:opacity .15s, filter .15s;
+  }
+  .engine-panel{
+    display:none; position:absolute; inset:0; background:var(--card);
+    border:1.5px solid var(--engine-color, var(--accent1)); border-radius:12px;
+    padding:22px 26px; text-align:center; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+  }
+  .content.engine-mode .engine-panel{ display:flex; }
+  .engine-panel .big-ico{ font-size:34px; line-height:1; }
+  .engine-panel .big-ico img{ width:36px; height:36px; object-fit:cover; border-radius:8px; vertical-align:middle; }
+  /* one plain font for the whole line (name included) — a registered name can be Japanese or
+     Latin, and mixing Kalam back in here would reintroduce the same baseline mismatch the
+     chip had (see engineering-notes.md); color alone marks the name */
+  .engine-panel .lead{ font-family:"Zen Maru Gothic",sans-serif; font-size:17px; }
+  .engine-panel .lead .lead-name{ font-weight:700; color:var(--engine-color, var(--accent1)); }
+  .engine-panel .url-preview{
+    font-size:11.5px; color:var(--sub); background:var(--paper2); padding:5px 10px; border-radius:6px;
+    max-width:92%; overflow-wrap:anywhere; white-space:normal; font-family:monospace; line-height:1.5;
+  }
+  .engine-panel .hint-row{ display:flex; gap:10px; font-size:11px; color:var(--sub); margin-top:4px; }
+  .engine-panel .hint-chip{ display:flex; align-items:center; gap:5px; }
+  .engine-panel .hint-chip kbd{ background:var(--card-border); border-radius:4px; padding:1px 6px; font-family:inherit; color:var(--ink); }
+  /* same one-shot confirm flash language as .bm.confirming/.list-item.confirming, just in the
+     engine's own color since there's no anchor element here to flash */
+  @keyframes engineConfirmFlash{
+    0%{ box-shadow:0 0 0 0 color-mix(in srgb, var(--engine-color, var(--accent1)) 55%, transparent); }
+    60%{ box-shadow:0 0 0 12px transparent; }
+    100%{ box-shadow:0 0 0 0 transparent; }
+  }
+  .engine-panel.firing{ animation:engineConfirmFlash .32s ease-out; }
 
   /* Web検索は入力欄と別エリア。常に見えている独立したボタンで、常時ショートカット表記も出す */
   .web-search-btn{
@@ -285,7 +419,12 @@
   </div>
 
   <div class="search-row">
-    <div class="search-bar">
+    <div class="search-bar" id="searchBar">
+      <span class="engine-chip" id="engineChip">
+        <span class="ico-badge" id="engineChipIcoBadge"><span id="engineChipIco"></span></span>
+        <span id="engineChipName"></span>
+        <span class="close" id="engineChipClose">×</span>
+      </span>
       <input id="queryInput" class="query-input" type="text" size="1"
         autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
       <span class="matches" id="matchCount"></span>
@@ -297,10 +436,21 @@
     </button>
   </div>
 
-  <div class="content">
+  <div class="content" id="content">
     <div class="masonry" id="grid"></div>
     <div class="listview active" id="list"></div>
     <div class="empty-state" id="emptyState"></div>
+    <div class="engine-panel" id="enginePanel">
+      <div class="big-ico" id="enginePanelIco"></div>
+      <div class="lead">
+        <span id="enginePanelPrefix"></span><span class="lead-name" id="enginePanelName"></span><span id="enginePanelSuffix"></span>
+      </div>
+      <div class="url-preview" id="enginePanelUrl"></div>
+      <div class="hint-row">
+        <span class="hint-chip"><span id="enginePanelHintOpenLabel"></span><kbd>Enter</kbd></span>
+        <span class="hint-chip"><span id="enginePanelHintDismissLabel"></span><kbd>Backspace</kbd></span>
+      </div>
+    </div>
   </div>
 
   <div class="modal-backdrop" id="settingsBackdrop">
@@ -341,6 +491,12 @@
       </div>
 
       <div class="settings-section">
+        <div class="settings-label" id="siteSearchLabel">Site search</div>
+        <div class="ss-list" id="siteSearchList"></div>
+        <button class="add-btn" id="btnAddSiteSearch">+ <span id="siteSearchAddLabel"></span></button>
+      </div>
+
+      <div class="settings-section">
         <div class="settings-label" id="helpLabel">Usage &amp; shortcuts</div>
         <div class="help-list" id="helpList"></div>
       </div>
@@ -359,6 +515,52 @@
         <div class="ai-hint" id="aiHint"></div>
         <textarea class="ai-prompt" id="aiPromptText" readonly></textarea>
         <button class="copy-btn" id="btnCopyPrompt"></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop nested" id="siteSearchDialogBackdrop">
+    <div class="settings-panel">
+      <div class="modal-header">
+        <div class="title" id="ssDialogTitle"></div>
+        <button class="modal-close" id="ssDialogClose">✕</button>
+      </div>
+      <div class="settings-section">
+        <div class="field">
+          <label id="ssFieldNameLabel"></label>
+          <input type="text" id="ssFieldName" maxlength="40">
+        </div>
+        <div class="field">
+          <label id="ssFieldKeywordLabel"></label>
+          <input type="text" id="ssFieldKeyword" maxlength="16" style="width:120px;">
+          <div class="field-error" id="ssKeywordError"></div>
+        </div>
+        <div class="field">
+          <label id="ssFieldUrlLabel"></label>
+          <input type="text" id="ssFieldUrl" placeholder="https://example.com/search?q=%s">
+          <div class="field-error" id="ssUrlError"></div>
+        </div>
+        <div class="field">
+          <label id="ssFieldIconLabel"></label>
+          <div class="icon-picker">
+            <div class="icon-current-wrap">
+              <div class="icon-current" id="ssIconPreview"></div>
+              <button class="icon-upload-btn" id="ssIconUploadBtn"></button>
+              <input type="file" accept="image/*" id="ssIconFile" hidden>
+            </div>
+            <div class="icon-suggest-wrap">
+              <input type="text" class="icon-emoji-input" id="ssIconEmojiInput" maxlength="20">
+              <div class="icon-suggest-label" id="ssIconHint"></div>
+              <div class="icon-suggestions" id="ssIconSuggestions"></div>
+            </div>
+          </div>
+          <div class="field-error" id="ssIconError"></div>
+        </div>
+        <div class="field-error" id="ssNameError"></div>
+        <div class="dialog-actions">
+          <button class="btn-cancel" id="ssCancelBtn"></button>
+          <button class="btn-save" id="ssSaveBtn"></button>
+        </div>
       </div>
     </div>
   </div>

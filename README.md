@@ -26,6 +26,10 @@ closed tabs — laid out and instantly searchable, without ever touching the mou
   field skips the search entirely and navigates there
 - **Web search fallback** — `Enter` opens a web search instead when nothing local
   matches, and `Ctrl+Enter` (or the search button) always does, match or not
+- **Site search shortcuts** — register your own `keyword → https://example.com/?q=%s`
+  entries (with an emoji or uploaded icon); typing `keyword` + `Space` takes over the bar
+  and `Enter` searches that site directly, `Ctrl+Enter` still falls back to a plain
+  web search on whatever you typed
 - **Time-of-day mood** — the paper color and one of 500 rotating greetings shift
   through dawn / day / dusk / night / late-night (or pin it to one you like)
 - **English & Japanese** — full UI and greeting translation, switchable anytime
@@ -49,6 +53,7 @@ closed tabs — laid out and instantly searchable, without ever touching the mou
 | Move selection | Arrow keys, `Ctrl+P` / `Ctrl+N`, or `Tab` / `Shift+Tab` |
 | Open selection | `Enter` |
 | Web search | `Ctrl+Enter` (or `Enter` when nothing local matches) |
+| Search a registered site | `keyword` + `Space`, then type your query and `Enter` |
 | Jump directly to a result | `Ctrl+<letter>` (shown once ≤9 results match) |
 | Clear search | `Esc` |
 
@@ -63,7 +68,7 @@ assistant you use if you'd rather learn it conversationally.
 | `bookmarks` | Reading your Bookmarks Bar to build the folder sections |
 | `tabs` | Listing open tabs, switching to one, and opening `chrome://bookmarks/` |
 | `sessions` | Listing and restoring recently closed tabs |
-| `storage` | Remembering your view/mood/language choice between sessions |
+| `storage` | Remembering your view/mood/language choice, and your registered site search shortcuts (including any uploaded icon), between sessions |
 | `favicon` | Showing each bookmark's real favicon without any external network request |
 | `search` | Running a web search with your default search engine (`Ctrl+Enter`, or `Enter` with no local match) |
 

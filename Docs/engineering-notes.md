@@ -39,6 +39,14 @@
 - **中央揃えの確認方法**:要素の `getBoundingClientRect()` 比較では不十分(文字の見た目を見ていない)。ハーネスで `body.style.zoom = 3.5` にし、バーの縦中心に赤い 1px の案内線を `position:absolute` で引いてスクリーンショットを撮り、文字の見た目の中心と比べる。英字は x-height 帯の中心で見る。
 - プレースホルダーの色・太さは `getComputedStyle(el, '::placeholder')` で読める。
 
+## サイト内検索(登録ショートカット)
+
+- **チップは検索欄の `Kalam` を継承させない**。以前ハマった「Kalam(英字の手書き風フォント)と日本語グリフの行高メトリクスが違う」問題(下記フォント節)と全く同じ現象が、チップ内の「登録名」と`×`(別フォント指定)の間でも起きた。名前がラテン文字でも日本語でも関係なく再発するため、チップ全体・プレビューパネルの行とも `Zen Maru Gothic` 一本に統一し、色だけで名前を強調する(`Kalam` を混在させない)。
+- **テープと同じ `top:0`(はみ出さない)原則を最初から守る**。エンジンのプレビューパネルは `.content` 内に絶対配置で重ねるだけ(マルチカラムの中に置かない)なので multicol 再描画バグの対象にはならないが、念のため擬似要素等でボックス外にはみ出す装飾は増やさない。
+- **`getVisibleAnchors()` はサイト内検索が発動中は空配列を返す**。発動中も裏の grid/list はそのまま描画され続ける(暗転させて重ねるだけ)ため、矢印キー/Tab/Ctrl+P・N がこの関数を経由する限り、非表示の選択がパネルの裏で動くのを一箇所で止められる。新しいナビゲーション系のキー操作を足すときも必ずこの関数を経由させること。
+- **ネストしたモーダル**は既存の `.modal-backdrop`(z-index:200)の上に `.modal-backdrop.nested`(z-index:300)を重ねる形にした。`Esc` の捕捉フェーズのハンドラは、ネストしたダイアログが開いていればそちらを先に閉じるよう順序を明示している(`isSiteSearchDialogOpen()` を `isModalOpen()` より先に見る)。
+- **アイコンは `emoji文字列` か `data:` URL の文字列**として同じフィールド(`icon`)に持たせ、描画側(`renderIconInto()`)で `data:` 判定して `<img>` か `textContent` かを切り替える一本化。アップロード画像は圧縮せず `chrome.storage.local` にそのまま保存するため、200KB のサイズガードを入れている(超えた場合はダイアログ内にインラインエラー、アップロードは反映しない)。
+
 ## パフォーマンス
 
 - 「開いているタブ」は 500 件でも問題ない(`chrome.tabs.query` とプレーンオブジェクトのフィルタは安価)。重いのは DOM 描画。
@@ -58,3 +66,4 @@
 - `MOODS[mood].greetings = { ja: [100], en: [100] }`、`PLACEHOLDERS` と `EMPTY_STATES` は `{ ja: [10], en: [10] }`。`emptyHint` は `{query}` を置換する文言。空状態の1行目は `renderEmptyState()` が「0件になった時点」で一度だけ選び、0件が続く間は固定する(毎キー入力で選び直すとちらつく)。DOM は `textContent` で組み立て、入力文字を `innerHTML` に入れない。
 - 疑似セクションは `name` ではなく `nameKey` を持ち、描画時に `t()` で解決する。
 - 設定は `chrome.storage.local` に `{ moodMode, view, lang }`。`init()` の最初に読み込んでから描画する。
+- サイト内検索の登録一覧は別キー `siteSearches`(`{id,name,keyword,url,icon,color}[]`)。同じく `init()` で読み込む。保存は `saveSettings()` とは別の `saveSiteSearches()`。
