@@ -239,6 +239,22 @@ function updateSiteSearchPreview(){
   matchCountEl.textContent = q ? t("siteSearchPreviewQuery").replace("{query}", q) : t("siteSearchPreviewEmpty");
 }
 
+// re-paints the chip/panel from activeSiteSearch's current data — needed whenever the
+// active entry's own fields change out from under it (editing it in the dialog, or an
+// import that updates it by keyword) without going through activate/deactivate. Without
+// this the DOM (name, icon, --engine-color) stays stale even though the object itself
+// (same reference activeSiteSearch points to) already has the new values, so Enter would
+// silently navigate to a new URL while the chip still shows the old name/icon/color.
+function syncActiveSiteSearchUI(){
+  if(!activeSiteSearch) return;
+  document.body.style.setProperty("--engine-color", activeSiteSearch.color);
+  renderIconInto(engineChipIcoBadgeEl, activeSiteSearch.icon);
+  engineChipNameEl.textContent = activeSiteSearch.name;
+  renderIconInto(enginePanelIcoEl, activeSiteSearch.icon);
+  enginePanelNameEl.textContent = activeSiteSearch.name;
+  updateSiteSearchPreview();
+}
+
 function activateSiteSearch(entry, remainder){
   activeSiteSearch = entry;
   hideTooltip();
@@ -1085,16 +1101,8 @@ function saveSiteSearchDialog(){
   if(editingSiteSearchId){
     const entry = siteSearches.find(s => s.id === editingSiteSearchId);
     entry.name = name; entry.keyword = keyword; entry.url = url; entry.icon = icon;
-    if(activeSiteSearch && activeSiteSearch.id === entry.id){
-      // keep the live chip/panel in sync if the entry being edited is the one active right
-      // now — set on body, not the bar (see the identical fix in activateSiteSearch())
-      document.body.style.setProperty("--engine-color", entry.color);
-      renderIconInto(engineChipIcoBadgeEl, entry.icon);
-      engineChipNameEl.textContent = entry.name;
-      renderIconInto(enginePanelIcoEl, entry.icon);
-      enginePanelNameEl.textContent = entry.name;
-      updateSiteSearchPreview();
-    }
+    // keep the live chip/panel in sync if the entry being edited is the one active right now
+    if(activeSiteSearch && activeSiteSearch.id === entry.id) syncActiveSiteSearchUI();
   } else {
     siteSearches.push({
       id: newSiteSearchId(), name, keyword, url, icon,
@@ -1150,6 +1158,7 @@ function importSiteSearches(file){
       return;
     }
     let count = 0;
+    let activeWasUpdated = false;
     imported.forEach(raw=>{
       const clean = normalizeImportedSiteSearch(raw);
       if(!clean) return;
@@ -1157,6 +1166,7 @@ function importSiteSearches(file){
       if(existing){
         existing.name = clean.name; existing.url = clean.url; existing.icon = clean.icon;
         if(clean.color) existing.color = clean.color;
+        if(activeSiteSearch && activeSiteSearch.id === existing.id) activeWasUpdated = true;
       } else {
         siteSearches.push({
           id: newSiteSearchId(),
@@ -1166,6 +1176,9 @@ function importSiteSearches(file){
       }
       count++;
     });
+    // the imported entry and activeSiteSearch are the same object (siteSearches.find()
+    // returns the live reference), so its data is already correct — only the DOM is stale
+    if(activeWasUpdated) syncActiveSiteSearchUI();
     if(count > 0){
       saveSiteSearches();
       renderSiteSearchList();
