@@ -243,7 +243,10 @@ function activateSiteSearch(entry, remainder){
   activeSiteSearch = entry;
   hideTooltip();
   searchBarEl.classList.add("engine-active");
-  searchBarEl.style.setProperty("--engine-color", entry.color);
+  // set on body, not just the bar — .engine-panel lives under #content, not under
+  // #searchBar, so a CSS variable set only on the bar never reaches it (it'd silently
+  // fall back to --accent1 for every entry's border/name color/confirm flash)
+  document.body.style.setProperty("--engine-color", entry.color);
   renderIconInto(engineChipIcoBadgeEl, entry.icon);
   engineChipNameEl.textContent = entry.name;
   renderIconInto(enginePanelIcoEl, entry.icon);
@@ -395,6 +398,11 @@ function renderEmptyState(isEmpty){
 }
 
 function render(){
+  // a site search chip owns the bar/panel while active — render()/applyHints() would
+  // otherwise stomp matchCountEl and the web-search button's "selected" look the moment
+  // anything calls render() for an unrelated reason (window regaining focus, a language
+  // switch) while a site search is active
+  if(activeSiteSearch){ updateSiteSearchPreview(); return; }
   hideTooltip(); // the hovered element (if any) is about to be destroyed and rebuilt
   const tokens = tokenize(queryInput.value);
   gridEl.innerHTML = "";
@@ -1046,7 +1054,11 @@ function newSiteSearchId(){ return Date.now().toString(36) + Math.random().toStr
 function saveSiteSearchDialog(){
   const name = ssFieldNameEl.value.trim();
   const keyword = ssFieldKeywordEl.value.trim();
-  const url = ssFieldUrlEl.value.trim();
+  // same "bare domain gets https:// prepended" normalization the paste-URL handler already
+  // uses — without it, a scheme-less template becomes a *relative* location.href assignment
+  // (resolves against the extension's own origin) instead of navigating to the intended site
+  let url = ssFieldUrlEl.value.trim();
+  if(url && !/^https?:\/\//i.test(url)) url = "https://" + url;
   let ok = true;
   ssNameErrorEl.classList.remove("show");
   ssKeywordErrorEl.classList.remove("show");
@@ -1114,7 +1126,9 @@ siteSearchDialogBackdrop.addEventListener("click", (e)=>{ if(e.target === siteSe
 // Enter anywhere in the dialog saves it, same one-key-does-the-obvious-thing feel as the
 // rest of the app — there's no multi-line field here for Enter to legitimately mean something else
 siteSearchDialogBackdrop.addEventListener("keydown", (e)=>{
-  if(e.key === "Enter" && !e.isComposing){ e.preventDefault(); saveSiteSearchDialog(); }
+  // same IME-confirm guard as queryInput's — without keyCode 229 too, finishing kanji
+  // conversion in the name field would save (and close) the dialog mid-edit
+  if(e.key === "Enter" && !e.isComposing && e.keyCode !== 229){ e.preventDefault(); saveSiteSearchDialog(); }
 });
 
 function tick(){
