@@ -40,6 +40,7 @@ Leap/
 - `doWebSearch()` — `chrome.search.query`
 - `activateSiteSearch()` / `deactivateSiteSearch()` / `fireSiteSearch()` — サイト内検索チップの発動・解除・Enter での遷移
 - `renderSiteSearchList()` / `openSiteSearchDialog()` / `saveSiteSearchDialog()` — 設定モーダルの一覧と追加・編集ダイアログ(`siteSearches` を `chrome.storage.local` に保存)
+- `exportSiteSearches()` / `importSiteSearches()` — JSONファイルへの書き出し・読み込み(キーワードでマージ)
 - `HELP_ROWS` + `renderSettingsPanel()` — 設定モーダルの使い方一覧(文言は `i18n.js` の `helpXxx`)
 - `switchLanguage()` — 言語切替(挨拶・プレースホルダー・ラベル・描画を再構築)
 

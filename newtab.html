@@ -71,6 +71,9 @@
     background:var(--card); border:1px solid var(--card-border); border-radius:16px;
     box-shadow:0 20px 50px rgba(58,47,34,0.3); padding:6px;
   }
+  /* the main settings modal specifically (not the narrower add/edit dialog, which shares
+     .settings-panel's base styling but stays at the default width) */
+  #settingsBackdrop .settings-panel{ width:540px; }
   .modal-header{
     display:flex; align-items:center; justify-content:space-between;
     padding:14px 14px 10px; position:sticky; top:0; background:var(--card); z-index:1;
@@ -132,11 +135,15 @@
     border-radius:6px; border:none; background:transparent; color:var(--sub); cursor:pointer;
   }
   .row-icon-btn:hover{ background:var(--card-border); color:var(--ink); }
+  .ss-list-actions{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:6px; }
+  .ss-io-btns{ display:flex; gap:4px; }
   .add-btn{
-    display:block; margin:6px 0 0 auto; background:var(--card); border:1px solid var(--card-border); color:var(--ink);
+    display:block; margin:0; background:var(--card); border:1px solid var(--card-border); color:var(--ink);
     padding:6px 14px; border-radius:8px; font-family:inherit; font-size:12.5px; font-weight:700; cursor:pointer;
   }
   .add-btn:hover{ background:var(--paper2); }
+  .ss-io-status{ font-size:11px; color:var(--sub); margin-top:6px; min-height:14px; }
+  .ss-io-status.error{ color:var(--accent1); }
 
   /* ===== add/edit dialog (nested over the settings modal) ===== */
   .field{ margin-bottom:14px; }
@@ -507,7 +514,19 @@
       <div class="settings-section">
         <div class="settings-label" id="siteSearchLabel">Site search</div>
         <div class="ss-list" id="siteSearchList"></div>
-        <button class="add-btn" id="btnAddSiteSearch">+ <span id="siteSearchAddLabel"></span></button>
+        <div class="ss-list-actions">
+          <div class="ss-io-btns">
+            <button class="row-icon-btn" id="btnExportSiteSearch" title="">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+            </button>
+            <button class="row-icon-btn" id="btnImportSiteSearch" title="">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+            </button>
+            <input type="file" accept="application/json,.json" id="ssImportFile" hidden>
+          </div>
+          <button class="add-btn" id="btnAddSiteSearch">+ <span id="siteSearchAddLabel"></span></button>
+        </div>
+        <div class="ss-io-status" id="ssIoStatus"></div>
       </div>
 
       <div class="settings-section">

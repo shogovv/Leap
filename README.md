@@ -29,7 +29,8 @@ closed tabs — laid out and instantly searchable, without ever touching the mou
 - **Site search shortcuts** — register your own `keyword → https://example.com/?q=%s`
   entries (with an emoji or uploaded icon); typing `keyword` + `Space` takes over the bar
   and `Enter` searches that site directly, `Ctrl+Enter` still falls back to a plain
-  web search on whatever you typed
+  web search on whatever you typed. Export/import them as a JSON file to back them up
+  or move them to another machine
 - **Time-of-day mood** — the paper color and one of 500 rotating greetings shift
   through dawn / day / dusk / night / late-night (or pin it to one you like)
 - **English & Japanese** — full UI and greeting translation, switchable anytime
