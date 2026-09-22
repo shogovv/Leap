@@ -153,6 +153,11 @@ async function loadClosedTabsSection(){
 }
 
 let sections = [];
+// whether this extension may navigate to file:// URLs at all (Chrome 118+ requires the
+// user to opt an extension in via the "Allow access to file URLs" toggle on its
+// chrome://extensions details page; without it, navigation is silently dropped — no
+// error, nothing pastes). Checked once at init() and cached; see the paste handler below.
+let fileSchemeAccessAllowed = false;
 let currentView = "list";
 let activeHints = {};
 let selectedIndex = -1;
@@ -605,6 +610,31 @@ function isUrlLike(text){
   return /^[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z0-9]{2,}(\/\S*)?$/i.test(t);
 }
 
+// a pasted local filesystem path also navigates immediately, same as a URL — this covers
+// Finder's "Copy as Pathname" (⌥⌘C) on mac and a plain Windows path from Explorer's
+// address bar. `~` is deliberately not supported: the page has no way to resolve it to
+// an actual home directory. Unlike isUrlLike, paths may contain spaces (real filenames
+// do), so this only checks the shape of the start, not the whole string.
+function isFilePathLike(text){
+  const t = text.trim();
+  if(!t || /[\r\n]/.test(t)) return false;
+  if(/^file:\/\//i.test(t)) return true;
+  if(/^\//.test(t)) return true; // unix-style absolute path
+  if(/^[a-zA-Z]:[\\/]/.test(t)) return true; // windows drive path, e.g. C:\ or C:/
+  return false;
+}
+
+// percent-encodes each path segment (but not the separators, and not a windows drive
+// letter's own colon) and prefixes the file:// scheme
+function toFileUrl(text){
+  const raw = text.trim();
+  if(/^file:\/\//i.test(raw)) return raw;
+  const isWindows = /^[a-zA-Z]:[\\/]/.test(raw);
+  const segments = raw.replace(/\\/g, "/").split("/");
+  const encoded = segments.map((seg, i) => (isWindows && i === 0) ? seg : encodeURIComponent(seg)).join("/");
+  return isWindows ? "file:///" + encoded : "file://" + encoded;
+}
+
 // forced web search — always available via Ctrl+Enter/Cmd+Enter or the button, and also
 // what a plain Enter falls back to once there are zero local matches (see the keydown
 // handler and applyHints()'s toggling of webSearchBtn's "selected" look)
@@ -628,10 +658,31 @@ queryInput.addEventListener("input", (e)=>{
 queryInput.addEventListener("compositionend", ()=>{ handleQueryChange(); });
 queryInput.addEventListener("paste", (e)=>{
   const pasted = (e.clipboardData || window.clipboardData).getData("text");
-  if(!isUrlLike(pasted)) return; // not URL-like — let it paste normally into incremental search
-  e.preventDefault();
-  const url = /^https?:\/\//i.test(pasted.trim()) ? pasted.trim() : "https://" + pasted.trim();
-  location.href = url;
+  if(isUrlLike(pasted)){
+    e.preventDefault();
+    const url = /^https?:\/\//i.test(pasted.trim()) ? pasted.trim() : "https://" + pasted.trim();
+    location.href = url;
+    return;
+  }
+  // a local path only intercepts the paste when Chrome will actually let this extension
+  // navigate there (fileSchemeAccessAllowed, checked once at init()) — otherwise Chrome
+  // silently drops the navigation with no error and nothing visible happens, which is
+  // worse than just letting the path paste in as plain text like any other unrecognized
+  // paste. See "ペーストで即遷移" in engineering-notes.md.
+  //
+  // this has to go through chrome.tabs.update(), NOT location.href — a plain
+  // location.href assignment to file:// is blocked outright regardless of the file-access
+  // toggle (confirmed: still silently no-ops even with the toggle on), because that block
+  // is a page-navigation-level restriction, not the extension-permission one. The
+  // "Allow access to file URLs" toggle specifically gates the Tabs/Windows APIs, so those
+  // are what has to be used here.
+  if(isFilePathLike(pasted) && fileSchemeAccessAllowed){
+    e.preventDefault();
+    chrome.tabs.update({ url: toFileUrl(pasted) })
+      .catch(err => console.error("newtab: local file navigation failed", err));
+    return;
+  }
+  // neither, or a local path without file-URL access — let it paste normally
 });
 queryInput.addEventListener("keydown", (e)=>{
   if(e.key === "Escape"){ e.preventDefault(); resetQuery(); return; }
@@ -1299,14 +1350,16 @@ async function init(){
   // independent: a failure loading one must not take down the others — previously these
   // were sequential awaits inside one try/catch, so an error in loadFolders() silently
   // skipped the tabs sections entirely
-  const [folderResult, openResult, closedResult] = await Promise.allSettled([
+  const [folderResult, openResult, closedResult, fileAccessResult] = await Promise.allSettled([
     loadFolders(),
     loadOpenTabsSection(),
     loadClosedTabsSection(),
+    chrome.extension.isAllowedFileSchemeAccess(),
   ]);
   if(folderResult.status === "rejected") console.error("newtab: failed to load bookmarks", folderResult.reason);
   if(openResult.status === "rejected") console.error("newtab: failed to load open tabs", openResult.reason);
   if(closedResult.status === "rejected") console.error("newtab: failed to load closed tabs", closedResult.reason);
+  fileSchemeAccessAllowed = fileAccessResult.status === "fulfilled" && fileAccessResult.value === true;
 
   const folderSections = folderResult.status === "fulfilled" ? folderResult.value : [];
   const openSection = openResult.status === "fulfilled" ? openResult.value : null;
