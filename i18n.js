@@ -7,6 +7,7 @@ const MESSAGES = {
     closedTabs: "最近閉じたタブ",
     untitledFolder: "無題フォルダ",
     emptyHint: "Enter で「{query}」をWeb検索",
+    emptyHintUrl: "Enter で「{query}」を開く",
     matchCountSuffix: " 件",
     matchCountHint: " · Ctrl+文字で開く",
 
@@ -38,7 +39,7 @@ const MESSAGES = {
     helpAnd: "言葉を続けてさらに絞り込む",
     helpAndKey: "スペース",
     helpPasteUrl: "URLを開く",
-    helpPasteUrlKey: "ペースト",
+    helpPasteUrlKey: "入力・貼り付け + Enter",
     helpMoveUpDown: "選択を上下に移動",
     helpMoveUpDownKey: "↑|↓",
     helpMoveLeftRight: "選択を左右に移動",
@@ -108,6 +109,7 @@ const MESSAGES = {
     closedTabs: "Recently Closed",
     untitledFolder: "Untitled Folder",
     emptyHint: "Press Enter to search the web for \"{query}\"",
+    emptyHintUrl: "Press Enter to open \"{query}\"",
     matchCountSuffix: " results",
     matchCountHint: " · Ctrl+letter to open",
 
@@ -139,7 +141,7 @@ const MESSAGES = {
     helpAnd: "Add more words to narrow further",
     helpAndKey: "Space",
     helpPasteUrl: "Open a URL",
-    helpPasteUrlKey: "Paste it",
+    helpPasteUrlKey: "Type or paste it, then Enter",
     helpMoveUpDown: "Move selection up/down",
     helpMoveUpDownKey: "↑|↓",
     helpMoveLeftRight: "Move selection left/right",

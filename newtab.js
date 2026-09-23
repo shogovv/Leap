@@ -408,7 +408,9 @@ function renderEmptyState(isEmpty){
     const shown = q.length > EMPTY_QUERY_MAX ? q.slice(0, EMPTY_QUERY_MAX) + "…" : q;
     const sub = document.createElement("div");
     sub.className = "empty-hint";
-    sub.textContent = t("emptyHint").replace("{query}", shown);
+    // a URL-like query opens directly on Enter (see the keydown handler) rather than
+    // falling back to a web search — say so, instead of the generic "web search" hint
+    sub.textContent = t(isUrlLike(q) ? "emptyHintUrl" : "emptyHint").replace("{query}", shown);
     emptyEl.appendChild(sub);
   }
 }
@@ -595,14 +597,20 @@ function resetQuery(){
   render();
 }
 
-// a pasted URL skips incremental search entirely and navigates this tab there immediately —
-// this page IS the current tab, so a plain location.href assignment is enough (same
-// mechanism as opening a bookmark via activate() below)
+// whatever's currently in the query field, typed or pasted — if it looks like a URL, Enter
+// opens it directly (see the keydown handler) instead of activating a selected result or
+// falling back to a web search
 function isUrlLike(text){
   const t = text.trim();
   if(!t || /\s/.test(t)) return false;
   if(/^https?:\/\//i.test(t)) return true;
   return /^[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z0-9]{2,}(\/\S*)?$/i.test(t);
+}
+// bare domains (no scheme) are assumed https:// — used wherever a user-supplied URL-ish
+// string needs to become an actual navigable URL (opening a typed/pasted URL, saving a site
+// search's template, importing one)
+function ensureScheme(url){
+  return /^https?:\/\//i.test(url) ? url : "https://" + url;
 }
 
 // forced web search — always available via Ctrl+Enter/Cmd+Enter or the button, and also
@@ -626,13 +634,14 @@ queryInput.addEventListener("input", (e)=>{
   handleQueryChange();
 });
 queryInput.addEventListener("compositionend", ()=>{ handleQueryChange(); });
-queryInput.addEventListener("paste", (e)=>{
-  const pasted = (e.clipboardData || window.clipboardData).getData("text");
-  if(!isUrlLike(pasted)) return; // not URL-like — let it paste normally into incremental search
-  e.preventDefault();
-  const url = /^https?:\/\//i.test(pasted.trim()) ? pasted.trim() : "https://" + pasted.trim();
-  location.href = url;
-});
+// pasting a URL used to preventDefault() and navigate immediately, bypassing the field
+// entirely — but location.href assignment isn't instant (DNS/TCP/etc.), so this page stayed
+// live and focused for a beat after. The "Cmd+V, Enter" muscle memory from the omnibox kept
+// firing that second Enter anyway, and it landed on the still-visible page: with nothing
+// yet in the (deliberately left empty) field, the first result was still selected, so it
+// opened the top bookmark instead of the pasted URL. Letting the paste land in the field
+// normally and having Enter open it (below) matches what the omnibox itself actually does —
+// paste, then Enter — and there's no longer a window where a stray Enter does the wrong thing.
 queryInput.addEventListener("keydown", (e)=>{
   if(e.key === "Escape"){ e.preventDefault(); resetQuery(); return; }
   // caret sitting right after the chip (position 0 of the remainder) + Backspace un-does
@@ -657,6 +666,10 @@ queryInput.addEventListener("keydown", (e)=>{
     // site search is active — see philosophy.md for why that "way out" has to stay reachable
     if(e.ctrlKey || e.metaKey){ doWebSearch(); return; }
     if(activeSiteSearch){ fireSiteSearch(); return; }
+    // a URL-like field always opens directly, regardless of what's selected below it — if
+    // you typed or pasted a full URL, that's where Enter should go, not to a bookmark that
+    // happens to match some of that text
+    if(isUrlLike(queryInput.value)){ location.href = ensureScheme(queryInput.value.trim()); return; }
     const anchors = getVisibleAnchors();
     if(anchors[selectedIndex]) confirmActivate(anchors[selectedIndex]);
     else doWebSearch();
@@ -1115,11 +1128,10 @@ function newSiteSearchId(){ return Date.now().toString(36) + Math.random().toStr
 function saveSiteSearchDialog(){
   const name = ssFieldNameEl.value.trim();
   const keyword = ssFieldKeywordEl.value.trim();
-  // same "bare domain gets https:// prepended" normalization the paste-URL handler already
-  // uses — without it, a scheme-less template becomes a *relative* location.href assignment
+  // without this, a scheme-less template becomes a *relative* location.href assignment
   // (resolves against the extension's own origin) instead of navigating to the intended site
   let url = ssFieldUrlEl.value.trim();
-  if(url && !/^https?:\/\//i.test(url)) url = "https://" + url;
+  if(url) url = ensureScheme(url);
   let ok = true;
   ssNameErrorEl.classList.remove("show");
   ssKeywordErrorEl.classList.remove("show");
@@ -1174,7 +1186,7 @@ function normalizeImportedSiteSearch(raw){
   const name = typeof raw.name === "string" ? raw.name.trim() : "";
   const keyword = typeof raw.keyword === "string" ? raw.keyword.trim() : "";
   let url = typeof raw.url === "string" ? raw.url.trim() : "";
-  if(url && !/^https?:\/\//i.test(url)) url = "https://" + url;
+  if(url) url = ensureScheme(url);
   if(!name || !keyword || /\s/.test(keyword) || !url || !url.includes("%s")) return null;
   const icon = typeof raw.icon === "string" && raw.icon ? raw.icon : "🔎";
   const color = typeof raw.color === "string" && /^var\(--accent\d\)$/.test(raw.color) ? raw.color : null;
