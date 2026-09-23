@@ -302,8 +302,11 @@ function fireSiteSearch(){
   if(!activeSiteSearch) return;
   const finalUrl = activeSiteSearch.url.replace("%s", encodeURIComponent(queryInput.value.trim()));
   enginePanelEl.classList.add("firing");
-  clearQueryInput(); // silent, same as confirmActivate() — no flash back to the normal view first
-  setTimeout(()=>{ location.href = finalUrl; }, CONFIRM_DELAY_MS);
+  // clear right alongside the actual navigation, not before the delay — clearing early made
+  // what you just typed visibly vanish for the whole CONFIRM_DELAY_MS before anything
+  // happened, which read as a glitch. By navigation time the field's contents don't matter
+  // anyway (this page is being replaced), so there's nothing lost by waiting.
+  setTimeout(()=>{ clearQueryInput(); location.href = finalUrl; }, CONFIRM_DELAY_MS);
 }
 
 engineChipCloseEl.addEventListener("click", ()=>{
@@ -490,8 +493,12 @@ const CONFIRM_DELAY_MS = 160; // long enough to see the flash, short enough not 
 // this single place so the feedback is consistent everywhere
 function confirmActivate(a){
   a.classList.add("confirming");
-  clearQueryInput(); // silent — no re-render, so nothing flashes back to the full list first
-  setTimeout(()=>activate(a), CONFIRM_DELAY_MS);
+  // clear right alongside activate(), not before the delay — clearing up front made whatever
+  // you'd just typed visibly vanish for the whole CONFIRM_DELAY_MS before anything actually
+  // happened, which read as a glitch rather than a confirmation. Deferring it here still
+  // gets a cleared field for whenever this tab is next seen (see clearQueryInput()'s own
+  // comment) without an empty field flashing in front of you first.
+  setTimeout(()=>{ clearQueryInput(); activate(a); }, CONFIRM_DELAY_MS);
 }
 
 function getVisibleAnchors(){
