@@ -590,8 +590,11 @@ function applyHints(){
     (query && visibleAnchors.length<=HINT_THRESHOLD && visibleAnchors.length>0 ? t("matchCountHint") : "");
 
   // zero local matches (with something actually typed) means Enter now falls through to
-  // web search too — move the "you're about to activate this" look over to that button
-  webSearchBtn.classList.toggle("selected", !!query && visibleAnchors.length === 0);
+  // web search too — move the "you're about to activate this" look over to that button.
+  // except when the query is URL-like: Enter opens it directly then (see the keydown
+  // handler and renderEmptyState()'s hint text), not a web search, so this button shouldn't
+  // claim to be the one about to fire
+  webSearchBtn.classList.toggle("selected", !!query && visibleAnchors.length === 0 && !isUrlLike(query));
 }
 
 // clears the query without rendering — use this right before leaving the page (navigating
@@ -604,9 +607,10 @@ function resetQuery(){
   render();
 }
 
-// whatever's currently in the query field, typed or pasted — if it looks like a URL, Enter
-// opens it directly (see the keydown handler) instead of activating a selected result or
-// falling back to a web search
+// whatever's currently in the query field, typed or pasted — if it looks like a URL and
+// nothing local actually matches, Enter opens it directly (see the keydown handler) instead
+// of falling back to a web search. A loose heuristic (also matches plain filenames like
+// "index.html"), so a real bookmark/tab match always takes priority over this.
 function isUrlLike(text){
   const t = text.trim();
   if(!t || /\s/.test(t)) return false;
@@ -673,12 +677,12 @@ queryInput.addEventListener("keydown", (e)=>{
     // site search is active — see philosophy.md for why that "way out" has to stay reachable
     if(e.ctrlKey || e.metaKey){ doWebSearch(); return; }
     if(activeSiteSearch){ fireSiteSearch(); return; }
-    // a URL-like field always opens directly, regardless of what's selected below it — if
-    // you typed or pasted a full URL, that's where Enter should go, not to a bookmark that
-    // happens to match some of that text
-    if(isUrlLike(queryInput.value)){ location.href = ensureScheme(queryInput.value.trim()); return; }
     const anchors = getVisibleAnchors();
+    // an actual bookmark/tab match always wins — isUrlLike() is a loose heuristic (it also
+    // matches plain filenames like "index.html" or "readme.md"), so it only gets to act as
+    // a stand-in for a real match, never override one
     if(anchors[selectedIndex]) confirmActivate(anchors[selectedIndex]);
+    else if(isUrlLike(queryInput.value)){ location.href = ensureScheme(queryInput.value.trim()); }
     else doWebSearch();
     return;
   }

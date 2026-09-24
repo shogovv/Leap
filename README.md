@@ -22,10 +22,10 @@ closed tabs — laid out and instantly searchable, without ever touching the mou
   further, and a folder name alone matches everything inside it
 - **Keyboard-first** — arrow keys, `Ctrl+P`/`Ctrl+N`, or `Tab`/`Shift+Tab` to move the
   selection, `Enter` to open it, `Ctrl+<letter>` to jump straight to a result, `Esc` to clear
-- **Type or paste a URL, `Enter` to go there** — a URL-shaped field always opens directly
-  on `Enter`, ahead of any bookmark match or web search
-- **Web search fallback** — `Enter` opens a web search instead when nothing local
-  matches, and `Ctrl+Enter` (or the search button) always does, match or not
+- **Type or paste a URL, `Enter` to go there** — when nothing local matches, a URL-shaped
+  field opens directly on `Enter` instead of falling back to a web search
+- **Web search fallback** — `Enter` searches the web instead when nothing local matches
+  and the field isn't a URL, and `Ctrl+Enter` (or the search button) always does, match or not
 - **Site search shortcuts** — register your own `keyword → https://example.com/?q=%s`
   entries (with an emoji or uploaded icon); typing `keyword` + `Space` takes over the bar
   and `Enter` searches that site directly, `Ctrl+Enter` still falls back to a plain
@@ -50,10 +50,10 @@ closed tabs — laid out and instantly searchable, without ever touching the mou
 |---|---|
 | Narrow down | Type letters |
 | Narrow down further | Separate words with a space |
-| Open a URL directly | Type or paste it, then `Enter` |
 | Move selection | Arrow keys, `Ctrl+P` / `Ctrl+N`, or `Tab` / `Shift+Tab` |
 | Open selection | `Enter` |
-| Web search | `Ctrl+Enter` (or `Enter` when nothing local matches) |
+| Open a URL directly | Type or paste it, then `Enter` (when nothing local matches) |
+| Web search | `Ctrl+Enter` (or `Enter` when nothing local matches and it's not a URL) |
 | Search a registered site | `keyword` + `Space`, then type your query and `Enter` |
 | Jump directly to a result | `Ctrl+<letter>` (shown once ≤9 results match) |
 | Clear search | `Esc` |
