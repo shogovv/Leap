@@ -22,13 +22,15 @@ closed tabs — laid out and instantly searchable, without ever touching the mou
   further, and a folder name alone matches everything inside it
 - **Keyboard-first** — arrow keys, `Ctrl+P`/`Ctrl+N`, or `Tab`/`Shift+Tab` to move the
   selection, `Enter` to open it, `Ctrl+<letter>` to jump straight to a result, `Esc` to clear
-- **Paste a URL or local path, go there directly** — pasting something URL-shaped or a
-  local filesystem path (e.g. `/Users/you/file.pdf`, `C:\Users\you\file.pdf`) into the
-  search field skips the search entirely and navigates there. Local paths need one manual
-  step: Chrome only lets an extension open `file://` URLs once you turn on "Allow access
-  to file URLs" for Leap on its `chrome://extensions` details page
-- **Web search fallback** — `Enter` opens a web search instead when nothing local
-  matches, and `Ctrl+Enter` (or the search button) always does, match or not
+- **Type or paste a URL, `Enter` to go there** — when nothing local matches, a URL-shaped
+  field opens directly on `Enter` instead of falling back to a web search
+- **Paste a local path, go there directly** — pasting a local filesystem path (e.g.
+  `/Users/you/file.pdf`, `C:\Users\you\file.pdf`) into the search field skips the search
+  entirely and navigates there immediately, no `Enter` needed. Needs one manual step:
+  Chrome only lets an extension open `file://` URLs once you turn on "Allow access to
+  file URLs" for Leap on its `chrome://extensions` details page
+- **Web search fallback** — `Enter` searches the web instead when nothing local matches
+  and the field isn't a URL, and `Ctrl+Enter` (or the search button) always does, match or not
 - **Site search shortcuts** — register your own `keyword → https://example.com/?q=%s`
   entries (with an emoji or uploaded icon); typing `keyword` + `Space` takes over the bar
   and `Enter` searches that site directly, `Ctrl+Enter` still falls back to a plain
@@ -53,10 +55,11 @@ closed tabs — laid out and instantly searchable, without ever touching the mou
 |---|---|
 | Narrow down | Type letters |
 | Narrow down further | Separate words with a space |
-| Open a URL or local path directly | Paste it |
 | Move selection | Arrow keys, `Ctrl+P` / `Ctrl+N`, or `Tab` / `Shift+Tab` |
 | Open selection | `Enter` |
-| Web search | `Ctrl+Enter` (or `Enter` when nothing local matches) |
+| Open a URL directly | Type or paste it, then `Enter` (when nothing local matches) |
+| Open a local path directly | Paste it |
+| Web search | `Ctrl+Enter` (or `Enter` when nothing local matches and it's not a URL) |
 | Search a registered site | `keyword` + `Space`, then type your query and `Enter` |
 | Jump directly to a result | `Ctrl+<letter>` (shown once ≤9 results match) |
 | Clear search | `Esc` |

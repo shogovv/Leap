@@ -307,8 +307,11 @@ function fireSiteSearch(){
   if(!activeSiteSearch) return;
   const finalUrl = activeSiteSearch.url.replace("%s", encodeURIComponent(queryInput.value.trim()));
   enginePanelEl.classList.add("firing");
-  clearQueryInput(); // silent, same as confirmActivate() — no flash back to the normal view first
-  setTimeout(()=>{ location.href = finalUrl; }, CONFIRM_DELAY_MS);
+  // clear right alongside the actual navigation, not before the delay — clearing early made
+  // what you just typed visibly vanish for the whole CONFIRM_DELAY_MS before anything
+  // happened, which read as a glitch. By navigation time the field's contents don't matter
+  // anyway (this page is being replaced), so there's nothing lost by waiting.
+  setTimeout(()=>{ clearQueryInput(); location.href = finalUrl; }, CONFIRM_DELAY_MS);
 }
 
 engineChipCloseEl.addEventListener("click", ()=>{
@@ -413,7 +416,9 @@ function renderEmptyState(isEmpty){
     const shown = q.length > EMPTY_QUERY_MAX ? q.slice(0, EMPTY_QUERY_MAX) + "…" : q;
     const sub = document.createElement("div");
     sub.className = "empty-hint";
-    sub.textContent = t("emptyHint").replace("{query}", shown);
+    // a URL-like query opens directly on Enter (see the keydown handler) rather than
+    // falling back to a web search — say so, instead of the generic "web search" hint
+    sub.textContent = t(isUrlLike(q) ? "emptyHintUrl" : "emptyHint").replace("{query}", shown);
     emptyEl.appendChild(sub);
   }
 }
@@ -493,8 +498,12 @@ const CONFIRM_DELAY_MS = 160; // long enough to see the flash, short enough not 
 // this single place so the feedback is consistent everywhere
 function confirmActivate(a){
   a.classList.add("confirming");
-  clearQueryInput(); // silent — no re-render, so nothing flashes back to the full list first
-  setTimeout(()=>activate(a), CONFIRM_DELAY_MS);
+  // clear right alongside activate(), not before the delay — clearing up front made whatever
+  // you'd just typed visibly vanish for the whole CONFIRM_DELAY_MS before anything actually
+  // happened, which read as a glitch rather than a confirmation. Deferring it here still
+  // gets a cleared field for whenever this tab is next seen (see clearQueryInput()'s own
+  // comment) without an empty field flashing in front of you first.
+  setTimeout(()=>{ clearQueryInput(); activate(a); }, CONFIRM_DELAY_MS);
 }
 
 function getVisibleAnchors(){
@@ -586,8 +595,11 @@ function applyHints(){
     (query && visibleAnchors.length<=HINT_THRESHOLD && visibleAnchors.length>0 ? t("matchCountHint") : "");
 
   // zero local matches (with something actually typed) means Enter now falls through to
-  // web search too — move the "you're about to activate this" look over to that button
-  webSearchBtn.classList.toggle("selected", !!query && visibleAnchors.length === 0);
+  // web search too — move the "you're about to activate this" look over to that button.
+  // except when the query is URL-like: Enter opens it directly then (see the keydown
+  // handler and renderEmptyState()'s hint text), not a web search, so this button shouldn't
+  // claim to be the one about to fire
+  webSearchBtn.classList.toggle("selected", !!query && visibleAnchors.length === 0 && !isUrlLike(query));
 }
 
 // clears the query without rendering — use this right before leaving the page (navigating
@@ -600,14 +612,21 @@ function resetQuery(){
   render();
 }
 
-// a pasted URL skips incremental search entirely and navigates this tab there immediately —
-// this page IS the current tab, so a plain location.href assignment is enough (same
-// mechanism as opening a bookmark via activate() below)
+// whatever's currently in the query field, typed or pasted — if it looks like a URL and
+// nothing local actually matches, Enter opens it directly (see the keydown handler) instead
+// of falling back to a web search. A loose heuristic (also matches plain filenames like
+// "index.html"), so a real bookmark/tab match always takes priority over this.
 function isUrlLike(text){
   const t = text.trim();
   if(!t || /\s/.test(t)) return false;
   if(/^https?:\/\//i.test(t)) return true;
   return /^[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z0-9]{2,}(\/\S*)?$/i.test(t);
+}
+// bare domains (no scheme) are assumed https:// — used wherever a user-supplied URL-ish
+// string needs to become an actual navigable URL (opening a typed/pasted URL, saving a site
+// search's template, importing one)
+function ensureScheme(url){
+  return /^https?:\/\//i.test(url) ? url : "https://" + url;
 }
 
 // a pasted local filesystem path also navigates immediately, same as a URL — this covers
@@ -656,19 +675,27 @@ queryInput.addEventListener("input", (e)=>{
   handleQueryChange();
 });
 queryInput.addEventListener("compositionend", ()=>{ handleQueryChange(); });
+// pasting a URL used to preventDefault() and navigate immediately, bypassing the field
+// entirely — but location.href assignment isn't instant (DNS/TCP/etc.), so this page stayed
+// live and focused for a beat after. The "Cmd+V, Enter" muscle memory from the omnibox kept
+// firing that second Enter anyway, and it landed on the still-visible page: with nothing
+// yet in the (deliberately left empty) field, the first result was still selected, so it
+// opened the top bookmark instead of the pasted URL. Letting the paste land in the field
+// normally and having Enter open it (below) matches what the omnibox itself actually does —
+// paste, then Enter — and there's no longer a window where a stray Enter does the wrong thing.
+//
+// A local filesystem path is NOT held to the same rule: unlike a URL, opening one goes
+// through chrome.tabs.update() rather than a network fetch, so there's no DNS/TCP/TLS
+// round-trip to leave this page alive and focused during — no meaningful window for a
+// reflexive second keystroke to land in. So a pasted path (Finder's "Copy as Pathname",
+// a plain Windows path from Explorer's address bar) still navigates immediately on paste,
+// same as before. See "ペーストで即遷移" in engineering-notes.md.
 queryInput.addEventListener("paste", (e)=>{
   const pasted = (e.clipboardData || window.clipboardData).getData("text");
-  if(isUrlLike(pasted)){
-    e.preventDefault();
-    const url = /^https?:\/\//i.test(pasted.trim()) ? pasted.trim() : "https://" + pasted.trim();
-    location.href = url;
-    return;
-  }
-  // a local path only intercepts the paste when Chrome will actually let this extension
-  // navigate there (fileSchemeAccessAllowed, checked once at init()) — otherwise Chrome
-  // silently drops the navigation with no error and nothing visible happens, which is
-  // worse than just letting the path paste in as plain text like any other unrecognized
-  // paste. See "ペーストで即遷移" in engineering-notes.md.
+  // only intercepts the paste when Chrome will actually let this extension navigate there
+  // (fileSchemeAccessAllowed, checked once at init()) — otherwise Chrome silently drops the
+  // navigation with no error and nothing visible happens, which is worse than just letting
+  // the path paste in as plain text like any other unrecognized paste.
   //
   // this has to go through chrome.tabs.update(), NOT location.href — a plain
   // location.href assignment to file:// is blocked outright regardless of the file-access
@@ -682,7 +709,8 @@ queryInput.addEventListener("paste", (e)=>{
       .catch(err => console.error("newtab: local file navigation failed", err));
     return;
   }
-  // neither, or a local path without file-URL access — let it paste normally
+  // a URL, or a local path without file-URL access — let it paste in as plain text; Enter
+  // (below) decides what a URL-like field does once it's visible in the field
 });
 queryInput.addEventListener("keydown", (e)=>{
   if(e.key === "Escape"){ e.preventDefault(); resetQuery(); return; }
@@ -709,7 +737,11 @@ queryInput.addEventListener("keydown", (e)=>{
     if(e.ctrlKey || e.metaKey){ doWebSearch(); return; }
     if(activeSiteSearch){ fireSiteSearch(); return; }
     const anchors = getVisibleAnchors();
+    // an actual bookmark/tab match always wins — isUrlLike() is a loose heuristic (it also
+    // matches plain filenames like "index.html" or "readme.md"), so it only gets to act as
+    // a stand-in for a real match, never override one
     if(anchors[selectedIndex]) confirmActivate(anchors[selectedIndex]);
+    else if(isUrlLike(queryInput.value)){ location.href = ensureScheme(queryInput.value.trim()); }
     else doWebSearch();
     return;
   }
@@ -881,6 +913,7 @@ function updateMoodRowsUI(){
 // small plain text after the badges instead of inside one.
 const HELP_ROWS = [
   ["helpNarrow","helpNarrowKey","plain"], ["helpAnd","helpAndKey"], ["helpPasteUrl","helpPasteUrlKey","plain"],
+  ["helpPasteLocalPath","helpPasteLocalPathKey","plain"],
   ["helpMoveUpDown","helpMoveUpDownKey"], ["helpMoveLeftRight","helpMoveLeftRightKey"],
   ["helpOpen","helpOpenKey"], ["helpWebSearch","helpWebSearchKey"],
   ["helpSiteSearch","helpSiteSearchKey","plain"],
@@ -1166,11 +1199,10 @@ function newSiteSearchId(){ return Date.now().toString(36) + Math.random().toStr
 function saveSiteSearchDialog(){
   const name = ssFieldNameEl.value.trim();
   const keyword = ssFieldKeywordEl.value.trim();
-  // same "bare domain gets https:// prepended" normalization the paste-URL handler already
-  // uses — without it, a scheme-less template becomes a *relative* location.href assignment
+  // without this, a scheme-less template becomes a *relative* location.href assignment
   // (resolves against the extension's own origin) instead of navigating to the intended site
   let url = ssFieldUrlEl.value.trim();
-  if(url && !/^https?:\/\//i.test(url)) url = "https://" + url;
+  if(url) url = ensureScheme(url);
   let ok = true;
   ssNameErrorEl.classList.remove("show");
   ssKeywordErrorEl.classList.remove("show");
@@ -1225,7 +1257,7 @@ function normalizeImportedSiteSearch(raw){
   const name = typeof raw.name === "string" ? raw.name.trim() : "";
   const keyword = typeof raw.keyword === "string" ? raw.keyword.trim() : "";
   let url = typeof raw.url === "string" ? raw.url.trim() : "";
-  if(url && !/^https?:\/\//i.test(url)) url = "https://" + url;
+  if(url) url = ensureScheme(url);
   if(!name || !keyword || /\s/.test(keyword) || !url || !url.includes("%s")) return null;
   const icon = typeof raw.icon === "string" && raw.icon ? raw.icon : "🔎";
   const color = typeof raw.color === "string" && /^var\(--accent\d\)$/.test(raw.color) ? raw.color : null;
